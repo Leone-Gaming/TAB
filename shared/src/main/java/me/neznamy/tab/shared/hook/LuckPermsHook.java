@@ -2,6 +2,7 @@ package me.neznamy.tab.shared.hook;
 
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.SneakyThrows;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.util.ReflectionUtils;
@@ -9,6 +10,7 @@ import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.cacheddata.CachedMetaData;
 import net.luckperms.api.model.user.User;
 import net.luckperms.api.query.QueryOptions;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -28,9 +30,39 @@ public class LuckPermsHook {
     /** Function retrieving group of player from LuckPerms */
     private final Function<TabPlayer, String> groupFunction = p -> {
         User user = LuckPermsProvider.get().getUserManager().getUser(p.getUniqueId());
-        if (user == null) return TabConstants.NO_GROUP;
-        return user.getPrimaryGroup();
+
+        if (user == null) {
+            return "default";
+        }
+
+        final String fakeGroup = getFakeGroup(p);
+        if (fakeGroup != null) {
+            return fakeGroup;
+        }
+
+        final String group = user.getPrimaryGroup();
+        if (group.contains("media")) {
+            return "media";
+        }
+
+        return group;
     };
+
+    /**
+     * Returns a fake group if the player is disguised
+     * @param p - player to get group of
+     */
+    @SneakyThrows
+    public @Nullable String getFakeGroup(TabPlayer p) {
+        final Object disguiseObject = NeonHook.getDisguise(p);
+
+        if (disguiseObject != null) {
+            final Object rankObject = disguiseObject.getClass().getDeclaredMethod("getRank").invoke(disguiseObject);
+            return (String) rankObject.getClass().getDeclaredMethod("getFakeRank").invoke(rankObject);
+        }
+
+        return null;
+    }
 
     /**
      * Returns player's prefix configured in LuckPerms

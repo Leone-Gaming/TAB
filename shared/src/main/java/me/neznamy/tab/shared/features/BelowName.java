@@ -19,7 +19,7 @@ import java.util.Map;
 /**
  * Feature handler for BelowName feature
  */
-public class BelowName extends TabFeature implements JoinListener, Loadable, UnLoadable,
+public class BelowName extends TabFeature implements JoinListener, QuitListener, Loadable, UnLoadable,
         Refreshable, LoginPacketListener, WorldSwitchListener, ServerSwitchListener {
 
     /** Objective name used by this feature */
@@ -104,6 +104,12 @@ public class BelowName extends TabFeature implements JoinListener, Loadable, UnL
             }
         }
         if (redis != null) redis.updateBelowName(connectedPlayer, number, fancy.get());
+    }
+
+    @Override
+    public void onQuit(@NotNull TabPlayer disconnectedPlayer) {
+        if (disconnectedPlayer.disabledBelowname.get()) return;
+        disconnectedPlayer.getScoreboard().unregisterObjective(OBJECTIVE_NAME);
     }
 
     /**

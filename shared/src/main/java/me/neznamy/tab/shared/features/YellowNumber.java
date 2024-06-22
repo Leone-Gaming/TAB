@@ -20,7 +20,7 @@ import java.util.Map;
  * Feature handler for scoreboard objective with
  * PLAYER_LIST display slot (in tablist).
  */
-public class YellowNumber extends TabFeature implements JoinListener, Loadable, UnLoadable,
+public class YellowNumber extends TabFeature implements JoinListener, QuitListener, Loadable, UnLoadable,
         Refreshable, LoginPacketListener {
 
     @Getter private final String PROPERTY_VALUE = Property.randomName();
@@ -128,6 +128,12 @@ public class YellowNumber extends TabFeature implements JoinListener, Loadable, 
         if (redis != null) redis.updateYellowNumber(connectedPlayer, value, valueFancy.get());
     }
 
+    @Override
+    public void onQuit(@NotNull TabPlayer disconnectedPlayer) {
+        if (disconnectedPlayer.disabledYellowNumber.get() || disconnectedPlayer.isBedrockPlayer()) return;
+        disconnectedPlayer.getScoreboard().unregisterObjective(OBJECTIVE_NAME);
+    }
+
     /**
      * Processes disable condition change.
      *
@@ -204,4 +210,5 @@ public class YellowNumber extends TabFeature implements JoinListener, Loadable, 
     public String getFeatureName() {
         return "Playerlist Objective";
     }
+
 }
