@@ -36,10 +36,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class YellowNumber extends RefreshableFeature implements JoinListener, QuitListener, Loadable,
         CustomThreaded, RedisFeature {
 
-    /** Objective name used by this feature */
+    /**
+     * Objective name used by this feature
+     */
     public static final String OBJECTIVE_NAME = "TAB-PlayerList";
 
-    /** Scoreboard title which is unused in java */
+    /**
+     * Scoreboard title which is unused in java
+     */
     private static final TabComponent TITLE = new SimpleComponent("PlayerListObjectiveTitle"); // Unused by this objective slot (on Java, only visible on Bedrock)
 
     @Getter
@@ -51,18 +55,23 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
     @Getter
     private OnlinePlayers onlinePlayers;
 
-    /** Numeric value to display */
+    /**
+     * Numeric value to display
+     */
     private final String rawValue = config().getString("playerlist-objective.value", TabConstants.Placeholder.PING);
     private final String rawValueFancy = config().getString("playerlist-objective.fancy-value", "&7Ping: " + TabConstants.Placeholder.PING);
 
-    /** Scoreboard display type */
+    /**
+     * Scoreboard display type
+     */
     private final Scoreboard.HealthDisplay displayType = TabConstants.Placeholder.HEALTH.equals(rawValue) ||
             "%player_health%".equals(rawValue) || "%player_health_rounded%".equals(rawValue) ?
             Scoreboard.HealthDisplay.HEARTS : Scoreboard.HealthDisplay.INTEGER;
     private final DisableChecker disableChecker;
 
     @Nullable
-    private final RedisSupport redis = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.REDIS_BUNGEE);;
+    private final RedisSupport redis = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.REDIS_BUNGEE);
+    ;
 
     /**
      * Constructs new instance and registers disable condition checker to feature manager.
@@ -77,9 +86,8 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
     /**
      * Returns current value for specified player parsed to int
      *
-     * @param   p
-     *          Player to get value of
-     * @return  Current value of player
+     * @param p Player to get value of
+     * @return Current value of player
      */
     public int getValueNumber(@NotNull TabPlayer p) {
         String string = p.playerlistObjectiveData.valueLegacy.updateAndGet();
@@ -165,10 +173,8 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
     /**
      * Processes disable condition change.
      *
-     * @param   p
-     *          Player who the condition has changed for
-     * @param   disabledNow
-     *          Whether the feature is disabled now or not
+     * @param p           Player who the condition has changed for
+     * @param disabledNow Whether the feature is disabled now or not
      */
     public void onDisableConditionChange(TabPlayer p, boolean disabledNow) {
         if (disabledNow) {
@@ -197,13 +203,15 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
 
     @Override
     public void refresh(@NotNull TabPlayer refreshed, boolean force) {
-        if (refreshed.playerlistObjectiveData.valueLegacy == null) return; // Player not loaded yet (refresh called before onJoin)
+        if (refreshed.playerlistObjectiveData.valueLegacy == null)
+            return; // Player not loaded yet (refresh called before onJoin)
         int value = getValueNumber(refreshed);
         refreshed.playerlistObjectiveData.valueModern.update();
         for (TabPlayer viewer : onlinePlayers.getPlayers()) {
             setScore(viewer, refreshed, value, refreshed.playerlistObjectiveData.valueModern.getFormat(viewer));
         }
-        if (redis != null) redis.sendMessage(new UpdateRedisPlayer(refreshed.getTablistId(), value, refreshed.playerlistObjectiveData.valueModern.get()));
+        if (redis != null)
+            redis.sendMessage(new UpdateRedisPlayer(refreshed.getTablistId(), value, refreshed.playerlistObjectiveData.valueModern.get()));
     }
 
     private void register(@NotNull TabPlayer player) {
@@ -214,14 +222,10 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
     /**
      * Updates score of specified entry to player.
      *
-     * @param   viewer
-     *          Player to send update to
-     * @param   scoreHolder
-     *          Owner of the score
-     * @param   value
-     *          Numeric value of the score
-     * @param   fancyValue
-     *          NumberFormat display of the score
+     * @param viewer      Player to send update to
+     * @param scoreHolder Owner of the score
+     * @param value       Numeric value of the score
+     * @param fancyValue  NumberFormat display of the score
      */
     public void setScore(@NotNull TabPlayer viewer, @NotNull TabPlayer scoreHolder, int value, @NotNull String fancyValue) {
         if (viewer.isBedrockPlayer() || viewer.playerlistObjectiveData.disabled.get()) return;
@@ -237,8 +241,7 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
     /**
      * Processes nickname change of player by updating score with player's new nickname.
      *
-     * @param   player
-     *          Player to process nickname change of
+     * @param player Player to process nickname change of
      */
     public void processNicknameChange(@NotNull TabPlayer player) {
         customThread.execute(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
@@ -251,6 +254,10 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
 
     @Override
     public void onQuit(@NotNull TabPlayer disconnectedPlayer) {
+        if (!(disconnectedPlayer.playerlistObjectiveData.disabled.get() || disconnectedPlayer.isBedrockPlayer())) {
+            disconnectedPlayer.getScoreboard().unregisterObjective(OBJECTIVE_NAME);
+        }
+
         onlinePlayers.removePlayer(disconnectedPlayer);
     }
 
@@ -266,13 +273,19 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
      */
     public static class PlayerData {
 
-        /** Player's score value */
+        /**
+         * Player's score value
+         */
         public Property valueLegacy;
 
-        /** Player's score number format */
+        /**
+         * Player's score number format
+         */
         public Property valueModern;
 
-        /** Flag tracking whether this feature is disabled for the player with condition or not */
+        /**
+         * Flag tracking whether this feature is disabled for the player with condition or not
+         */
         public final AtomicBoolean disabled = new AtomicBoolean();
     }
 

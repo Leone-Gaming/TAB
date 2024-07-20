@@ -291,6 +291,10 @@ public class BelowName extends RefreshableFeature implements JoinListener, QuitL
 
     @Override
     public void onQuit(@NotNull TabPlayer disconnectedPlayer) {
+        if (!(disconnectedPlayer.belowNameData.disabled.get())) {
+            disconnectedPlayer.getScoreboard().unregisterObjective(OBJECTIVE_NAME);
+        }
+
         onlinePlayers.removePlayer(disconnectedPlayer);
     }
 

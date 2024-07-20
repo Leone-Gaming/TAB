@@ -2,6 +2,7 @@ package me.neznamy.tab.shared.hook;
 
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.SneakyThrows;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.platform.TabPlayer;
@@ -10,6 +11,7 @@ import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.cacheddata.CachedMetaData;
 import net.luckperms.api.model.user.User;
 import net.luckperms.api.query.QueryOptions;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -29,12 +31,39 @@ public class LuckPermsHook {
     /** Function retrieving group of player from LuckPerms */
     private final Function<TabPlayer, String> groupFunction = p -> {
         if (p.luckPermsUser == null) p.luckPermsUser = LuckPermsProvider.get().getUserManager().getUser(p.getUniqueId());
+
         if (p.luckPermsUser == null) {
-            TAB.getInstance().debug("LuckPerms returned null user for player " + p.getName() + "( " + p.getUniqueId() + ")");
-            return TabConstants.NO_GROUP;
+            return "default";
         }
-        return p.luckPermsUser.getPrimaryGroup();
+
+        final String fakeGroup = getFakeGroup(p);
+        if (fakeGroup != null) {
+            return fakeGroup;
+        }
+
+        final String group = p.luckPermsUser.getPrimaryGroup();
+        if (group.contains("media")) {
+            return "media";
+        }
+
+        return group;
     };
+
+    /**
+     * Returns a fake group if the player is disguised
+     * @param p player to get group of
+     */
+    @SneakyThrows
+    public @Nullable String getFakeGroup(TabPlayer p) {
+        final Object disguiseObject = NeonHook.getDisguise(p);
+
+        if (disguiseObject != null) {
+            final Object rankObject = disguiseObject.getClass().getDeclaredMethod("getRank").invoke(disguiseObject);
+            return (String) rankObject.getClass().getDeclaredMethod("getFakeRank").invoke(rankObject);
+        }
+
+        return null;
+    }
 
     /**
      * Returns player's prefix configured in LuckPerms
