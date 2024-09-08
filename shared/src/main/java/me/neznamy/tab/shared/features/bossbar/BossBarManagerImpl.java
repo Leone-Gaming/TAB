@@ -2,12 +2,15 @@ package me.neznamy.tab.shared.features.bossbar;
 
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.api.bossbar.BarColor;
 import me.neznamy.tab.api.bossbar.BarStyle;
 import me.neznamy.tab.api.bossbar.BossBar;
 import me.neznamy.tab.api.bossbar.BossBarManager;
 import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.config.files.config.BossBarConfiguration;
 import me.neznamy.tab.shared.cpu.ThreadExecutor;
 import me.neznamy.tab.shared.cpu.TimedCaughtTask;
 import me.neznamy.tab.shared.platform.TabPlayer;
@@ -25,23 +28,18 @@ import java.util.stream.Collectors;
 public class BossBarManagerImpl extends RefreshableFeature implements BossBarManager, JoinListener, CommandListener, Loadable,
         QuitListener, CustomThreaded {
 
-    @Getter
-    private final StringToComponentCache cache = new StringToComponentCache("BossBar", 1000);
-
-    @Getter
-    private final ThreadExecutor customThread = new ThreadExecutor("TAB BossBar Thread");
+    @Getter private final StringToComponentCache cache = new StringToComponentCache("BossBar", 1000);
+    @Getter private final ThreadExecutor customThread = new ThreadExecutor("TAB BossBar Thread");
 
     //default BossBars
     private final List<String> defaultBars = new ArrayList<>();
 
     //registered BossBars
-    @Getter private final Map<String, BossBar> registeredBossBars = new HashMap<>();
+    @Getter private final Map<String, BossBar> registeredBossBars = new LinkedHashMap<>();
     protected BossBar[] lineValues;
 
     //config options
-    @Getter private final String command = config().getString("bossbar.toggle-command", "/bossbar");
-    private final boolean hiddenByDefault = config().getBoolean("bossbar.hidden-by-default", false);
-    private final boolean rememberToggleChoice = config().getBoolean("bossbar.remember-toggle-choice", false);
+    @Getter private final BossBarConfiguration configuration;
     private final String toggleOnMessage = TAB.getInstance().getConfiguration().getMessages().getBossBarOn();
     private final String toggleOffMessage = TAB.getInstance().getConfiguration().getMessages().getBossBarOff();
 
@@ -49,47 +47,27 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
     @Getter private final List<BossBar> announcedBossBars = new ArrayList<>();
 
     //players with toggled BossBar
-    private final List<String> bossBarOffPlayers = rememberToggleChoice ? TAB.getInstance().getConfiguration().getPlayerDataFile()
-            .getStringList("bossbar-off", new ArrayList<>()) : Collections.emptyList();
+    private final List<String> bossBarOffPlayers;
 
     //time when BossBar announce ends, used for placeholder
     private long announceEndTime;
 
     /**
-     * Constructs new instance and loads configuration
+     * Constructs new instance.
+     *
+     * @param   configuration
+     *          Feature configuration
      */
-    public BossBarManagerImpl() {
-        super("BossBar", "Updating display conditions");
-        for (Object bar : config().getConfigurationSection("bossbar.bars").keySet()) {
-            BossBarLine line = loadFromConfig(bar.toString());
-            registeredBossBars.put(bar.toString(), line);
-            if (!line.isAnnouncementBar()) defaultBars.add(bar.toString());
+    public BossBarManagerImpl(@NonNull BossBarConfiguration configuration) {
+        this.configuration = configuration;
+        bossBarOffPlayers = configuration.rememberToggleChoice ? TAB.getInstance().getConfiguration().getPlayerDataFile()
+                .getStringList("bossbar-off", new ArrayList<>()) : Collections.emptyList();
+        for (Map.Entry<String, BossBarConfiguration.BossBarDefinition> entry : configuration.bars.entrySet()) {
+            String name = entry.getKey();
+            registeredBossBars.put(name, new BossBarLine(this, name, entry.getValue()));
+            if (!entry.getValue().announcementOnly) defaultBars.add(name);
         }
         lineValues = registeredBossBars.values().toArray(new BossBar[0]);
-    }
-
-    /**
-     * Loads BossBar from config by its name
-     *
-     * @param   bar
-     *          name of BossBar in config
-     * @return  loaded BossBar
-     */
-    private @NotNull BossBarLine loadFromConfig(@NonNull String bar) {
-        Map<String, Object> bossBar = config().getConfigurationSection("bossbar.bars." + bar);
-        TAB.getInstance().getConfigHelper().startup().checkForInvalidObjectProperties("bossbar", bar, bossBar,
-                Arrays.asList("style", "color", "progress", "text", "announcement-bar", "display-condition"));
-        TAB.getInstance().getConfigHelper().startup().checkBossBarProperties(bossBar, bar);
-        return new BossBarLine(
-                this,
-                bar,
-                (String) bossBar.get("display-condition"),
-                String.valueOf(bossBar.get("color")),
-                String.valueOf(bossBar.get("style")),
-                String.valueOf(bossBar.get("text")),
-                String.valueOf(bossBar.get("progress")),
-                (boolean) bossBar.getOrDefault("announcement-bar", false)
-        );
     }
 
     @Override
@@ -104,12 +82,18 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
         }
     }
 
+    @NotNull
+    @Override
+    public String getRefreshDisplayName() {
+        return "Updating display conditions";
+    }
+
     @Override
     public void refresh(@NotNull TabPlayer p, boolean force) {
         if (!hasBossBarVisible(p)) return;
         boolean conditionResultChange = false;
         for (BossBar line : lineValues) {
-            if (((BossBarLine)line).isConditionMet(p) != p.bossbarData.visibleBossBars.contains(line))
+            if (((BossBarLine)line).isConditionMet(p) != p.bossbarData.visibleBossBars.containsKey(line))
                 conditionResultChange = true;
         }
         if (conditionResultChange) {
@@ -122,16 +106,22 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
 
     @Override
     public void onJoin(@NotNull TabPlayer connectedPlayer) {
-        setBossBarVisible(connectedPlayer, hiddenByDefault == bossBarOffPlayers.contains(connectedPlayer.getName()), false);
+        setBossBarVisible(connectedPlayer, configuration.hiddenByDefault == bossBarOffPlayers.contains(connectedPlayer.getName()), false);
     }
 
     @Override
     public boolean onCommand(@NotNull TabPlayer sender, @NotNull String message) {
-        if (message.equals(command)) {
+        if (message.equals(configuration.toggleCommand)) {
             TAB.getInstance().getCommand().execute(sender, new String[] {"bossbar"});
             return true;
         }
         return false;
+    }
+
+    @Override
+    @NotNull
+    public String getCommand() {
+        return configuration.toggleCommand;
     }
 
     /**
@@ -154,13 +144,13 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
     private void showBossBars(@NonNull TabPlayer p) {
         for (String defaultBar : defaultBars) {
             BossBarLine bar = (BossBarLine) registeredBossBars.get(defaultBar);
-            if (bar.isConditionMet(p) && !p.bossbarData.visibleBossBars.contains(bar)) {
+            if (bar.isConditionMet(p) && !p.bossbarData.visibleBossBars.containsKey(bar)) {
                 bar.addPlayer(p);
             }
         }
         for (BossBar announced : announcedBossBars) {
             BossBarLine bar = (BossBarLine) announced;
-            if (bar.isConditionMet(p) && !p.bossbarData.visibleBossBars.contains(bar)) {
+            if (bar.isConditionMet(p) && !p.bossbarData.visibleBossBars.containsKey(bar)) {
                 bar.addPlayer(p);
             }
         }
@@ -171,6 +161,12 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
         for (BossBar line : lineValues) {
             ((BossBarLine)line).removePlayerRaw(disconnectedPlayer);
         }
+    }
+
+    @NotNull
+    @Override
+    public String getFeatureName() {
+        return "BossBar";
     }
 
     // ------------------
@@ -189,7 +185,7 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
     public BossBar createBossBar(@NonNull String title, @NonNull String progress, @NonNull String color, @NonNull String style) {
         ensureActive();
         UUID id = UUID.randomUUID();
-        BossBar bar = new BossBarLine(this, id.toString(), null, color, style, title, progress, true);
+        BossBar bar = new BossBarLine(this, id.toString(), new BossBarConfiguration.BossBarDefinition(style, color, progress, title, true, null));
         registeredBossBars.put(id.toString(), bar);
         lineValues = registeredBossBars.values().toArray(new BossBar[0]);
         return bar;
@@ -222,8 +218,8 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
             player.bossbarData.visible = true;
             detectBossBarsAndSend(player);
             if (sendToggleMessage) player.sendMessage(toggleOnMessage, true);
-            if (rememberToggleChoice) {
-                if (hiddenByDefault) {
+            if (configuration.rememberToggleChoice) {
+                if (configuration.hiddenByDefault) {
                     if (!bossBarOffPlayers.contains(player.getName())) {
                         bossBarOffPlayers.add(player.getName());
                         savePlayers();
@@ -240,8 +236,8 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
                 l.removePlayer(player);
             }
             if (sendToggleMessage) player.sendMessage(toggleOffMessage, true);
-            if (rememberToggleChoice) {
-                if (hiddenByDefault) {
+            if (configuration.rememberToggleChoice) {
+                if (configuration.hiddenByDefault) {
                     if (bossBarOffPlayers.remove(player.getName())) {
                         savePlayers();
                     }
@@ -303,6 +299,25 @@ public class BossBarManagerImpl extends RefreshableFeature implements BossBarMan
         public boolean visible;
 
         /** Boss bars this player can currently see */
-        public Set<BossBarLine> visibleBossBars = Collections.newSetFromMap(new IdentityHashMap<>());
+        public Map<BossBarLine, BossBarProperties> visibleBossBars = new IdentityHashMap<>();
+    }
+
+    /**
+     * Class storing properties of a bossbar for player.
+     */
+    @RequiredArgsConstructor
+    public static class BossBarProperties {
+
+        /** Property holding BossBar title */
+        @NonNull public final Property textProperty;
+
+        /** Property holding BossBar progress */
+        @NonNull public final Property progressProperty;
+
+        /** Property holding BossBar color */
+        @NonNull public final Property colorProperty;
+
+        /** Property holding BossBar style */
+        @NonNull public final Property styleProperty;
     }
 }

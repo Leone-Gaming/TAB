@@ -9,9 +9,10 @@ import me.neznamy.tab.shared.chat.EnumChatFormat;
 import me.neznamy.tab.shared.chat.rgb.RGBUtils;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
+import me.neznamy.tab.shared.config.files.animations.AnimationConfiguration;
+import me.neznamy.tab.shared.config.files.animations.AnimationConfiguration.AnimationDefinition;
 import me.neznamy.tab.shared.features.PlaceholderManagerImpl;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * A class representing an animation from animations.yml
@@ -46,30 +47,26 @@ public class Animation {
      *          Placeholder manager
      * @param   name
      *          animation's name
-     * @param   list
-     *          list of animation frames
-     * @param   interval
-     *          change interval to next frame
+     * @param   configuration
+     *          Animation configuration
      */
-    public Animation(@NotNull PlaceholderManagerImpl placeholderManager, @NonNull String name, @Nullable List<String> list, int interval) {
+    public Animation(@NotNull PlaceholderManagerImpl placeholderManager, @NonNull String name, @NotNull AnimationDefinition configuration) {
         this.placeholderManager = placeholderManager;
         this.name = name;
-        messages = TAB.getInstance().getConfigHelper().startup().fixAnimationFrames(name, list).toArray(new String[0]);
-        this.interval = TAB.getInstance().getConfigHelper().startup().fixAnimationInterval(name, interval);
-        int refresh = this.interval;
+        messages = configuration.texts.toArray(new String[0]);
+        interval = configuration.changeInterval;
+        int refresh = interval;
         List<String> nestedPlaceholders = new ArrayList<>();
         for (int i=0; i<messages.length; i++) {
             messages[i] = RGBUtils.getInstance().applyCleanGradients(messages[i]);
             messages[i] = EnumChatFormat.color(messages[i]);
-            nestedPlaceholders.addAll(placeholderManager.detectPlaceholders(messages[i]));
+            nestedPlaceholders.addAll(PlaceholderManagerImpl.detectPlaceholders(messages[i]));
         }
         for (String placeholder : nestedPlaceholders) {
             int localRefresh;
             if (placeholder.startsWith("%animation:")) {
-                //nested animations may not be loaded into the system yet due to load order, manually getting the refresh interval
-                String nestedAnimation = placeholder.substring("%animation:".length(), placeholder.length()-1);
-                localRefresh = TAB.getInstance().getConfiguration().getAnimationFile().hasConfigOption(nestedAnimation + ".change-interval") ?
-                        TAB.getInstance().getConfiguration().getAnimationFile().getInt(nestedAnimation + ".change-interval") : this.interval;
+                AnimationConfiguration cfg = TAB.getInstance().getConfiguration().getAnimations().getAnimations();
+                localRefresh = cfg.animations.containsKey(placeholder) ? cfg.animations.get(placeholder).changeInterval : interval;
             } else {
                 localRefresh = placeholderManager.getPlaceholder(placeholder).getRefresh();
             }

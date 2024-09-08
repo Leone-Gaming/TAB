@@ -29,7 +29,7 @@ public class VelocityTabList extends TrackedTabList<VelocityTabPlayer, Component
     }
 
     @Override
-    public void removeEntry0(@NonNull UUID entry) {
+    public void removeEntry(@NonNull UUID entry) {
         player.getPlayer().getTabList().removeEntry(entry);
     }
 
@@ -54,11 +54,18 @@ public class VelocityTabList extends TrackedTabList<VelocityTabPlayer, Component
     }
 
     @Override
+    public void updateListOrder(@NonNull UUID entry, int listOrder) {
+        // TODO
+    }
+
+    @Override
     @SuppressWarnings("deprecation") // "Internal usage"
-    public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency, int gameMode, @Nullable Component displayName) {
+    public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency,
+                         int gameMode, @Nullable Component displayName, int listOrder) {
         GameProfile profile = new GameProfile(id, name, skin == null ? Collections.emptyList() : Collections.singletonList(
                         new GameProfile.Property(TEXTURES_PROPERTY, skin.getValue(), Objects.requireNonNull(skin.getSignature()))));
         TabListEntry e = player.getPlayer().getTabList().buildEntry(profile, displayName, latency, gameMode, null, listed);
+        // TODO listOrder
 
         // Remove entry because:
         // #1 - If player is 1.8 - 1.19.2, KeyedVelocityTabList#addEntry will throw IllegalArgumentException
@@ -84,7 +91,7 @@ public class VelocityTabList extends TrackedTabList<VelocityTabPlayer, Component
     @Override
     public void checkDisplayNames() {
         for (TabListEntry entry : player.getPlayer().getTabList().getEntries()) {
-            Component expectedComponent = getExpectedDisplayName(entry.getProfile().getId());
+            Component expectedComponent = getExpectedDisplayNames().get(entry.getProfile().getId());
             if (expectedComponent != null && entry.getDisplayNameComponent().orElse(null) != expectedComponent) {
                 entry.setDisplayName(expectedComponent);
             }

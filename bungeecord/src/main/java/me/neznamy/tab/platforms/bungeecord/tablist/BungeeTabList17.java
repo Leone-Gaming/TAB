@@ -7,6 +7,7 @@ import me.neznamy.tab.shared.chat.TabComponent;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.TextComponent;
 import net.md_5.bungee.protocol.packet.PlayerListItem;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -25,10 +26,10 @@ import java.util.UUID;
 public class BungeeTabList17 extends BungeeTabList {
 
     /** Because entries are identified by names and not uuids on 1.7 */
-    @NonNull
+    @NotNull
     private final Map<UUID, String> userNames = new HashMap<>();
 
-    @NonNull
+    @NotNull
     private final Map<UUID, BaseComponent> displayNames = new HashMap<>();
 
     /**
@@ -42,7 +43,7 @@ public class BungeeTabList17 extends BungeeTabList {
     }
 
     @Override
-    public void removeEntry0(@NonNull UUID entry) {
+    public void removeEntry(@NonNull UUID entry) {
         if (!displayNames.containsKey(entry)) return; // Entry not tracked by TAB
         removeUuid(entry);
         update(PlayerListItem.Action.REMOVE_PLAYER, createItem(null, displayNames.get(entry), 0));
@@ -56,7 +57,7 @@ public class BungeeTabList17 extends BungeeTabList {
     public void updateDisplayName(@NonNull UUID entry, @Nullable BaseComponent displayName) {
         if (!displayNames.containsKey(entry)) return; // Entry not tracked by TAB
         update(PlayerListItem.Action.REMOVE_PLAYER, createItem(null, displayNames.get(entry), 0));
-        addEntry(entry, userNames.get(entry), null, false, 0, 0, displayName);
+        addEntry(entry, userNames.get(entry), null, false, 0, 0, displayName, 0);
     }
 
     @Override
@@ -76,7 +77,13 @@ public class BungeeTabList17 extends BungeeTabList {
     }
 
     @Override
-    public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency, int gameMode, @Nullable BaseComponent displayName) {
+    public void updateListOrder(@NonNull UUID entry, int listOrder) {
+        // Added in 1.21.2
+    }
+
+    @Override
+    public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency,
+                         int gameMode, @Nullable BaseComponent displayName, int listOrder) {
         addUuid(id);
         update(PlayerListItem.Action.ADD_PLAYER, createItem(name, displayName == null ? new TextComponent(name) : displayName, latency));
 

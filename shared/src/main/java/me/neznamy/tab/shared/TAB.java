@@ -170,7 +170,7 @@ public class TAB extends TabAPI {
             cpu = new CpuManager();
             configuration = new Configs();
             featureManager = new FeatureManager();
-            placeholderManager = new PlaceholderManagerImpl(cpu);
+            placeholderManager = new PlaceholderManagerImpl(cpu, configuration.getConfig().getRefresh());
             featureManager.registerFeature(TabConstants.Feature.PLACEHOLDER_MANAGER, placeholderManager);
             groupManager = platform.detectPermissionPlugin();
             platform.registerPlaceholders();
@@ -182,7 +182,6 @@ public class TAB extends TabAPI {
             if (eventBus != null) eventBus.fire(TabLoadEventImpl.getInstance());
             pluginDisabled = false;
             cpu.enable();
-            configHelper.startup().checkErrorLog();
             configHelper.startup().printWarnCount();
             platform.logInfo(TabComponent.fromColoredText(EnumChatFormat.GREEN + "Enabled in " + (System.currentTimeMillis()-time) + "ms"));
             return configuration.getMessages().getReloadSuccess();
@@ -315,7 +314,7 @@ public class TAB extends TabAPI {
      *          Message to send
      */
     public void debug(@NotNull String message) {
-        if (configuration != null && configuration.isDebugMode())
+        if (configuration != null && configuration.getConfig().isDebugMode())
             platform.logInfo(TabComponent.fromColoredText(EnumChatFormat.BLUE + "[DEBUG] " + message));
     }
 }

@@ -25,7 +25,7 @@ public class BukkitTabList extends TabListBase<String> {
     }
 
     @Override
-    public void removeEntry0(@NonNull UUID entry) {
+    public void removeEntry(@NonNull UUID entry) {
         // Shrug
     }
 
@@ -53,7 +53,13 @@ public class BukkitTabList extends TabListBase<String> {
     }
 
     @Override
-    public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency, int gameMode, @Nullable String displayName) {
+    public void updateListOrder(@NonNull UUID entry, int listOrder) {
+        // Shrug
+    }
+
+    @Override
+    public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency,
+                         int gameMode, @Nullable String displayName, int listOrder) {
         // Shrug
     }
 

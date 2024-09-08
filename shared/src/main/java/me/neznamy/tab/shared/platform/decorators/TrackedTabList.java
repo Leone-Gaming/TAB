@@ -4,7 +4,6 @@ import lombok.*;
 import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -29,13 +28,8 @@ public abstract class TrackedTabList<P extends TabPlayer, C> implements TabList 
     private boolean antiOverride;
 
     /** Expected names based on configuration, saving to restore them if another plugin overrides them */
+    @Getter
     private final Map<UUID, C> expectedDisplayNames = Collections.synchronizedMap(new WeakHashMap<>());
-
-    @Override
-    public void removeEntry(@NonNull UUID entry) {
-        expectedDisplayNames.remove(entry);
-        removeEntry0(entry);
-    }
 
     @Override
     public void updateDisplayName(@NonNull UUID entry, @Nullable TabComponent displayName) {
@@ -48,34 +42,11 @@ public abstract class TrackedTabList<P extends TabPlayer, C> implements TabList 
     public void addEntry(@NonNull Entry entry) {
         C component = entry.getDisplayName() == null ? null : toComponent(entry.getDisplayName());
         if (antiOverride) expectedDisplayNames.put(entry.getUniqueId(), component);
-        addEntry(entry.getUniqueId(), entry.getName(), entry.getSkin(), entry.isListed(), entry.getLatency(), entry.getGameMode(), component);
+        addEntry(entry.getUniqueId(), entry.getName(), entry.getSkin(), entry.isListed(), entry.getLatency(), entry.getGameMode(), component, entry.getListOrder());
         if (player.getVersion().getMinorVersion() == 8) {
             // Compensation for 1.8.0 client sided bug
             updateDisplayName(entry.getUniqueId(), component);
         }
-    }
-
-    /**
-     * Returns expected display name for specified UUID. If nothing is found or anti-override is disabled,
-     * {@code null} is returned.
-     *
-     * @param   id
-     *          UUID of tablist entry
-     * @return  Expected display name or {@code null} if not found or anti-override is disabled
-     */
-    @Nullable
-    public C getExpectedDisplayName(@NotNull UUID id) {
-        return expectedDisplayNames.get(id);
-    }
-
-    /**
-     * Removes UUID from expected display names (to prevent memory leak).
-     *
-     * @param   id
-     *          UUID to remove
-     */
-    public void removeExpectedDisplayName(@NotNull UUID id) {
-        expectedDisplayNames.remove(id);
     }
 
     /**
@@ -109,14 +80,6 @@ public abstract class TrackedTabList<P extends TabPlayer, C> implements TabList 
     }
 
     /**
-     * Removes entry from the TabList.
-     *
-     * @param   entry
-     *          Entry to remove
-     */
-    public abstract void removeEntry0(@NonNull UUID entry);
-
-    /**
      * Updates display name of an entry. Using {@code null} makes it undefined and
      * scoreboard team prefix/suffix will be visible instead.
      *
@@ -144,7 +107,9 @@ public abstract class TrackedTabList<P extends TabPlayer, C> implements TabList 
      *          Entry game mode
      * @param   displayName
      *          Entry display name
+     * @param   listOrder
+     *          Entry list order
      */
     public abstract void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin,
-                                  boolean listed, int latency, int gameMode, @Nullable C displayName);
+                                  boolean listed, int latency, int gameMode, @Nullable C displayName, int listOrder);
 }

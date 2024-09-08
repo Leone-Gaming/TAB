@@ -9,6 +9,7 @@ import me.neznamy.tab.shared.Limitations;
 import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import me.neznamy.tab.shared.util.TriFunctionWithException;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Constructor;
@@ -26,10 +27,10 @@ public class PacketTabList17 extends TabListBase<String> {
     private static PacketSender packetSender;
 
     /** Because entries are identified by names and not uuids on 1.7- */
-    @NonNull
+    @NotNull
     private final Map<UUID, String> userNames = new HashMap<>();
 
-    @NonNull
+    @NotNull
     private final Map<UUID, String> displayNames = new HashMap<>();
 
     /**
@@ -73,7 +74,7 @@ public class PacketTabList17 extends TabListBase<String> {
 
     @Override
     @SneakyThrows
-    public void removeEntry0(@NonNull UUID entry) {
+    public void removeEntry(@NonNull UUID entry) {
         if (!displayNames.containsKey(entry)) return; // Entry not tracked by TAB
         packetSender.sendPacket(player, newPacket.apply(displayNames.get(entry), false, 0));
         userNames.remove(entry);
@@ -85,7 +86,7 @@ public class PacketTabList17 extends TabListBase<String> {
     public void updateDisplayName(@NonNull UUID entry, @Nullable String displayName) {
         if (!displayNames.containsKey(entry)) return; // Entry not tracked by TAB
         packetSender.sendPacket(player, newPacket.apply(displayNames.get(entry), false, 0));
-        addEntry(entry, userNames.get(entry), null, false, 0, 0, displayName);
+        addEntry(entry, userNames.get(entry), null, false, 0, 0, displayName, 0);
     }
 
     @Override
@@ -106,8 +107,14 @@ public class PacketTabList17 extends TabListBase<String> {
     }
 
     @Override
+    public void updateListOrder(@NonNull UUID entry, int listOrder) {
+        // Added in 1.21.2
+    }
+
+    @Override
     @SneakyThrows
-    public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency, int gameMode, @Nullable String displayName) {
+    public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency,
+                         int gameMode, @Nullable String displayName, int listOrder) {
         String display = displayName == null ? name : displayName;
         packetSender.sendPacket(player, newPacket.apply(display, true, latency));
         userNames.put(id, name);

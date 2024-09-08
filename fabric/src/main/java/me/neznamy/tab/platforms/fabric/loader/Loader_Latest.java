@@ -3,10 +3,8 @@ package me.neznamy.tab.platforms.fabric.loader;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import io.netty.channel.Channel;
-import lombok.SneakyThrows;
 import me.neznamy.tab.platforms.fabric.FabricScoreboard;
 import me.neznamy.tab.platforms.fabric.FabricTabList;
-import me.neznamy.tab.platforms.fabric.FabricTabPlayer;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.chat.ChatModifier;
 import me.neznamy.tab.shared.chat.TabComponent;
@@ -16,7 +14,6 @@ import me.neznamy.tab.shared.platform.TabPlayer;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.*;
 import net.minecraft.network.chat.numbers.FixedFormat;
-import net.minecraft.network.chat.numbers.NumberFormat;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.*;
 import net.minecraft.resources.ResourceLocation;
@@ -36,13 +33,11 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 
 /**
- * Method loader compiled using Minecraft 1.21.
+ * Implementation containing methods in the state of the latest supported
+ * Minecraft version by the mod.
  */
-@SuppressWarnings({
-        "DataFlowIssue", // Profile is not null on add action
-        "unused" // Actually used, just via reflection
-})
-public class Loader_1_21 implements Loader {
+@SuppressWarnings("DataFlowIssue") // Profile is not null on add action
+public class Loader_Latest implements Loader {
 
     @Override
     @NotNull
@@ -155,7 +150,7 @@ public class Loader_1_21 implements Loader {
             Component displayName = nmsData.displayName();
             int latency = nmsData.latency();
             if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME)) {
-                Component expectedDisplayName = ((FabricTabPlayer)receiver).getTabList().getExpectedDisplayName(nmsData.profileId());
+                Component expectedDisplayName = ((FabricTabList)receiver.getTabList()).getExpectedDisplayNames().get(nmsData.profileId());
                 if (expectedDisplayName != null) displayName = expectedDisplayName;
             }
             if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LATENCY)) {
@@ -164,7 +159,8 @@ public class Loader_1_21 implements Loader {
             if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER)) {
                 TAB.getInstance().getFeatureManager().onEntryAdd(receiver, nmsData.profileId(), profile.getName());
             }
-            updatedList.add(new ClientboundPlayerInfoUpdatePacket.Entry(nmsData.profileId(), profile, nmsData.listed(), latency, nmsData.gameMode(), displayName, nmsData.chatSession()));
+            updatedList.add(new ClientboundPlayerInfoUpdatePacket.Entry(nmsData.profileId(), profile, nmsData.listed(),
+                    latency, nmsData.gameMode(), displayName, nmsData.listOrder(), nmsData.chatSession()));
         }
         packet.entries = updatedList;
     }
@@ -183,6 +179,7 @@ public class Loader_1_21 implements Loader {
                 entry.getLatency(),
                 GameType.byId(entry.getGameMode()),
                 entry.getDisplayName(),
+                entry.getListOrder(),
                 null
         ));
         return packet;
@@ -260,7 +257,7 @@ public class Loader_1_21 implements Loader {
      * not existing despite the code never running.
      * Why? Nobody knows.
      */
-    private static class Register1_20_3 {
+    public static class Register1_20_3 {
 
         @NotNull
         public static Objective newObjective(@NotNull String name, @NotNull Component displayName,
@@ -269,20 +266,12 @@ public class Loader_1_21 implements Loader {
         }
 
         @NotNull
-        @SneakyThrows
         public static Packet<?> setScore(@NotNull String objective, @NotNull String holder, int score, @Nullable Component displayName, @Nullable TabComponent numberFormat) {
-            try {
-                // 1.20.5+
-                return new ClientboundSetScorePacket(holder, objective, score, Optional.ofNullable(displayName), Optional.ofNullable(toFixedFormat(numberFormat)));
-            } catch (Throwable t) {
-                // 1.20.3 / 1.20.4
-                return ClientboundSetScorePacket.class.getConstructor(String.class, String.class, int.class, Component.class, NumberFormat.class)
-                        .newInstance(holder, objective, score, displayName, toFixedFormat(numberFormat));
-            }
+            return new ClientboundSetScorePacket(holder, objective, score, Optional.ofNullable(displayName), Optional.ofNullable(toFixedFormat(numberFormat)));
         }
 
         @Nullable
-        private static FixedFormat toFixedFormat(@Nullable TabComponent component) {
+        public static FixedFormat toFixedFormat(@Nullable TabComponent component) {
             if (component == null) return null;
             return component.toFixedFormat(FixedFormat::new);
         }
@@ -292,10 +281,6 @@ public class Loader_1_21 implements Loader {
 
         static final Map<TabList.Action, EnumSet<ClientboundPlayerInfoUpdatePacket.Action>> actionMap = createActionMap();
 
-        public static EnumSet<ClientboundPlayerInfoUpdatePacket.Action> convertAction(TabList.Action action) {
-            return EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.valueOf(action.name()));
-        }
-
         private static Map<TabList.Action, EnumSet<ClientboundPlayerInfoUpdatePacket.Action>> createActionMap() {
             Map<TabList.Action, EnumSet<ClientboundPlayerInfoUpdatePacket.Action>> actions = new EnumMap<>(TabList.Action.class);
             actions.put(TabList.Action.ADD_PLAYER, EnumSet.allOf(ClientboundPlayerInfoUpdatePacket.Action.class));
@@ -303,6 +288,7 @@ public class Loader_1_21 implements Loader {
             actions.put(TabList.Action.UPDATE_DISPLAY_NAME, EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME));
             actions.put(TabList.Action.UPDATE_LATENCY, EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LATENCY));
             actions.put(TabList.Action.UPDATE_LISTED, EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LISTED));
+            actions.put(TabList.Action.UPDATE_LIST_ORDER, EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LIST_ORDER));
             return actions;
         }
     }

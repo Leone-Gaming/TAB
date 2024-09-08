@@ -11,6 +11,7 @@ import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.tab.shared.config.files.config.TeamConfiguration;
 import me.neznamy.tab.shared.cpu.ThreadExecutor;
 import me.neznamy.tab.shared.cpu.TimedCaughtTask;
 import me.neznamy.tab.shared.features.redis.RedisPlayer;
@@ -30,35 +31,31 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+@Getter
 public class NameTag extends RefreshableFeature implements NameTagManager, JoinListener, QuitListener,
         Loadable, WorldSwitchListener, ServerSwitchListener, VanishListener, CustomThreaded, RedisFeature, GroupListener {
 
-    /** Name of the property used in configuration */
-    public static final String TAGPREFIX = "tagprefix";
-
-    /** Name of the property used in configuration */
-    public static final String TAGSUFFIX = "tagsuffix";
-
-    @Getter private final ThreadExecutor customThread = new ThreadExecutor("TAB NameTag Thread");
-
-    @Getter private OnlinePlayers onlinePlayers;
-    
-    protected final boolean invisibleNameTags = config().getBoolean("scoreboard-teams.invisible-nametags", false);
-    private final boolean canSeeFriendlyInvisibles = config().getBoolean("scoreboard-teams.can-see-friendly-invisibles", false);
-    private final boolean antiOverride = config().getBoolean("scoreboard-teams.anti-override", true);
-
-    @Getter private final StringToComponentCache cache = new StringToComponentCache("NameTags", 1000);
-    @Getter private final CollisionManager collisionManager = new CollisionManager(this);
-    @Getter private final int teamOptions = canSeeFriendlyInvisibles ? 2 : 0;
-    @Getter private final DisableChecker disableChecker;
+    private final ThreadExecutor customThread = new ThreadExecutor("TAB NameTag Thread");
+    private OnlinePlayers onlinePlayers;
+    private final TeamConfiguration configuration;
+    private final StringToComponentCache cache = new StringToComponentCache("NameTags", 1000);
+    private final CollisionManager collisionManager;
+    private final int teamOptions;
+    private final DisableChecker disableChecker;
     @Nullable private final RedisSupport redis = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.REDIS_BUNGEE);
 
-    public NameTag() {
-        super("NameTags", "Updating prefix/suffix");
-        Condition disableCondition = Condition.getCondition(config().getString("scoreboard-teams.disable-condition"));
-        disableChecker = new DisableChecker(this, disableCondition, this::onDisableConditionChange, p -> p.teamData.disabled);
+    /**
+     * Constructs new instance and registers sub-features.
+     *
+     * @param   configuration
+     *          Feature configuration
+     */
+    public NameTag(@NotNull TeamConfiguration configuration) {
+        this.configuration = configuration;
+        teamOptions = configuration.canSeeFriendlyInvisibles ? 2 : 0;
+        disableChecker = new DisableChecker(this, Condition.getCondition(configuration.disableCondition), this::onDisableConditionChange, p -> p.teamData.disabled);
+        collisionManager = new CollisionManager(this);
         TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.NAME_TAGS + "-Condition", disableChecker);
-        if (!antiOverride) TAB.getInstance().getConfigHelper().startup().teamAntiOverrideDisabled();
         TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.NAME_TAGS_VISIBILITY, new VisibilityRefresher(this));
     }
 
@@ -71,7 +68,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
         TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.NAME_TAGS_COLLISION, collisionManager);
         collisionManager.load();
         for (TabPlayer all : onlinePlayers.getPlayers()) {
-            ((SafeScoreboard<?>)all.getScoreboard()).setAntiOverrideTeams(antiOverride);
+            ((SafeScoreboard<?>)all.getScoreboard()).setAntiOverrideTeams(configuration.antiOverride);
             loadProperties(all);
             all.teamData.teamName = all.sortingData.shortTeamName; // Sorting is loaded sync before nametags
             if (disableChecker.isDisableConditionMet(all)) {
@@ -99,6 +96,12 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
         }
     }
 
+    @NotNull
+    @Override
+    public String getRefreshDisplayName() {
+        return "Updating prefix/suffix";
+    }
+
     @Override
     public void refresh(@NotNull TabPlayer refreshed, boolean force) {
         if (refreshed.teamData.disabled.get()) return;
@@ -124,7 +127,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
     @Override
     public void onJoin(@NotNull TabPlayer connectedPlayer) {
         onlinePlayers.addPlayer(connectedPlayer);
-        ((SafeScoreboard<?>)connectedPlayer.getScoreboard()).setAntiOverrideTeams(antiOverride);
+        ((SafeScoreboard<?>)connectedPlayer.getScoreboard()).setAntiOverrideTeams(configuration.antiOverride);
         loadProperties(connectedPlayer);
         connectedPlayer.teamData.teamName = connectedPlayer.sortingData.shortTeamName; // Sorting is loaded sync before nametags
         for (TabPlayer all : onlinePlayers.getPlayers()) {
@@ -223,8 +226,8 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
      *          Player to load properties for
      */
     private void loadProperties(@NotNull TabPlayer player) {
-        player.teamData.prefix = player.loadPropertyFromConfig(this, TAGPREFIX, "");
-        player.teamData.suffix = player.loadPropertyFromConfig(this, TAGSUFFIX, "");
+        player.teamData.prefix = player.loadPropertyFromConfig(this, "tagprefix", "");
+        player.teamData.suffix = player.loadPropertyFromConfig(this, "tagsuffix", "");
     }
 
     /**
@@ -236,8 +239,8 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
      * @return  {@code true} if at least one property changed, {@code false} if not
      */
     private boolean updateProperties(@NotNull TabPlayer p) {
-        boolean changed = p.updatePropertyFromConfig(p.teamData.prefix, TAGPREFIX, "");
-        if (p.updatePropertyFromConfig(p.teamData.suffix, TAGSUFFIX, "")) changed = true;
+        boolean changed = p.updatePropertyFromConfig(p.teamData.prefix, "");
+        if (p.updatePropertyFromConfig(p.teamData.suffix, "")) changed = true;
         return changed;
     }
 
@@ -372,7 +375,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
 
     public boolean getTeamVisibility(@NonNull TabPlayer p, @NonNull TabPlayer viewer) {
         if (viewer.getVersion().getMinorVersion() == 8 && p.hasInvisibilityPotion()) return false;
-        return !hasHiddenNameTag(p) && !hasHiddenNameTag(p, viewer) && !invisibleNameTags && !viewer.teamData.invisibleNameTagView;
+        return !hasHiddenNameTag(p) && !hasHiddenNameTag(p, viewer) && !configuration.invisibleNameTags && !viewer.teamData.invisibleNameTagView;
     }
 
     /**
@@ -567,7 +570,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
     }
 
     @Override
-    @NonNull
+    @NotNull
     public String getOriginalPrefix(@NonNull me.neznamy.tab.api.TabPlayer player) {
         ensureActive();
         TabPlayer p = (TabPlayer) player;
@@ -576,7 +579,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
     }
 
     @Override
-    @NonNull
+    @NotNull
     public String getOriginalSuffix(@NonNull me.neznamy.tab.api.TabPlayer player) {
         ensureActive();
         TabPlayer p = (TabPlayer) player;
@@ -605,6 +608,12 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
     public boolean hasHiddenNameTagVisibilityView(@NonNull me.neznamy.tab.api.TabPlayer player) {
         ensureActive();
         return ((TabPlayer)player).teamData.invisibleNameTagView;
+    }
+
+    @NotNull
+    @Override
+    public String getFeatureName() {
+        return "NameTags";
     }
 
     /**
@@ -741,7 +750,7 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
                 TAB.getInstance().debug("Processing nametag join of redis player " + target.getName());
             }
             String oldTeamName = target.getTeamName();
-            String newTeamName = checkTeamName(target, teamName.substring(0, teamName.length()-1), 65);
+            String newTeamName = checkTeamName(target, teamName.substring(0, teamName.length()-1));
             target.setTeamName(newTeamName);
             target.setTagPrefix(prefix);
             target.setTagSuffix(suffix);
@@ -776,20 +785,32 @@ public class NameTag extends RefreshableFeature implements NameTagManager, JoinL
             }
         }
 
-        private @NotNull String checkTeamName(@NotNull RedisPlayer player, @NotNull String currentName15, int id) {
-            String potentialTeamName = currentName15 + (char)id;
-            for (TabPlayer all : onlinePlayers.getPlayers()) {
-                if (all.teamData.teamName.equals(potentialTeamName)) {
-                    return checkTeamName(player, currentName15, id+1);
+        @NotNull
+        private String checkTeamName(@NotNull RedisPlayer player, @NotNull String currentName15) {
+            char id = 'A';
+            while (true) {
+                String potentialTeamName = currentName15 + id;
+                boolean nameTaken = false;
+                for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
+                    if (potentialTeamName.equals(all.sortingData.shortTeamName)) {
+                        nameTaken = true;
+                        break;
+                    }
                 }
-            }
-            for (RedisPlayer all : redis.getRedisPlayers().values()) {
-                if (all == player) continue;
-                if (potentialTeamName.equals(all.getTeamName())) {
-                    return checkTeamName(player, currentName15, id+1);
+                if (!nameTaken && redis != null) {
+                    for (RedisPlayer all : redis.getRedisPlayers().values()) {
+                        if (all == player) continue;
+                        if (potentialTeamName.equals(all.getTeamName())) {
+                            nameTaken = true;
+                            break;
+                        }
+                    }
                 }
+                if (!nameTaken) {
+                    return potentialTeamName;
+                }
+                id++;
             }
-            return potentialTeamName;
         }
     }
 }

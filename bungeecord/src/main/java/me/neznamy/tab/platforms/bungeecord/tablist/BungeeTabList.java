@@ -15,6 +15,7 @@ import net.md_5.bungee.protocol.packet.PlayerListItem;
 import net.md_5.bungee.protocol.packet.PlayerListItem.Item;
 import net.md_5.bungee.protocol.packet.PlayerListItemUpdate;
 import net.md_5.bungee.tab.ServerUnique;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
@@ -54,7 +55,7 @@ public abstract class BungeeTabList extends TrackedTabList<BungeeTabPlayer, Base
      *          UUID to use
      * @return  New {@link Item} with given UUID.
      */
-    @NonNull
+    @NotNull
     public Item item(@NonNull UUID id) {
         Item item = new Item();
         item.setUuid(id);
@@ -78,10 +79,13 @@ public abstract class BungeeTabList extends TrackedTabList<BungeeTabPlayer, Base
      *          Entry game mode
      * @param   displayName
      *          Entry display name
+     * @param   listOrder
+     *          Entry list order
      * @return  Converted item from parameters
      */
-    @NonNull
-    public Item entryToItem(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency, int gameMode, @Nullable BaseComponent displayName) {
+    @NotNull
+    public Item entryToItem(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency,
+                            int gameMode, @Nullable BaseComponent displayName, int listOrder) {
         Item item = item(id);
         item.setUsername(name);
         item.setDisplayName(displayName);
@@ -93,6 +97,7 @@ public abstract class BungeeTabList extends TrackedTabList<BungeeTabPlayer, Base
         } else {
             item.setProperties(new Property[0]);
         }
+        item.setListOrder(listOrder);
         return item;
     }
 
@@ -122,7 +127,7 @@ public abstract class BungeeTabList extends TrackedTabList<BungeeTabPlayer, Base
             PlayerListItem listItem = (PlayerListItem) packet;
             for (PlayerListItem.Item item : listItem.getItems()) {
                 if (listItem.getAction() == PlayerListItem.Action.UPDATE_DISPLAY_NAME || listItem.getAction() == PlayerListItem.Action.ADD_PLAYER) {
-                    BaseComponent expectedDisplayName = getExpectedDisplayName(item.getUuid());
+                    BaseComponent expectedDisplayName = getExpectedDisplayNames().get(item.getUuid());
                     if (expectedDisplayName != null) item.setDisplayName(expectedDisplayName);
                 }
                 if (listItem.getAction() == PlayerListItem.Action.UPDATE_LATENCY || listItem.getAction() == PlayerListItem.Action.ADD_PLAYER) {
@@ -136,7 +141,7 @@ public abstract class BungeeTabList extends TrackedTabList<BungeeTabPlayer, Base
             PlayerListItemUpdate update = (PlayerListItemUpdate) packet;
             for (PlayerListItem.Item item : update.getItems()) {
                 if (update.getActions().contains(PlayerListItemUpdate.Action.UPDATE_DISPLAY_NAME)) {
-                    BaseComponent expectedDisplayName = getExpectedDisplayName(item.getUuid());
+                    BaseComponent expectedDisplayName = getExpectedDisplayNames().get(item.getUuid());
                     if (expectedDisplayName != null) item.setDisplayName(expectedDisplayName);
                 }
                 if (update.getActions().contains(PlayerListItemUpdate.Action.UPDATE_LATENCY)) {

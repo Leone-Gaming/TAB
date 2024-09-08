@@ -3,7 +3,6 @@ package me.neznamy.tab.shared.features.scoreboard.lines;
 import lombok.Getter;
 import lombok.NonNull;
 import me.neznamy.tab.shared.Limitations;
-import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.chat.EnumChatFormat;
@@ -31,8 +30,6 @@ public abstract class ScoreboardLine extends RefreshableFeature implements Line,
     //ID of this line
     protected final int lineNumber;
 
-    protected final String textProperty = Property.randomName();
-
     //text to display
     protected String text;
     protected String numberFormat;
@@ -59,7 +56,6 @@ public abstract class ScoreboardLine extends RefreshableFeature implements Line,
      *          ID of this line
      */
     protected ScoreboardLine(@NonNull ScoreboardImpl parent, int lineNumber, String text) {
-        super(parent.getFeatureName(), "Updating Scoreboard lines");
         initializeText(text);
         this.parent = parent;
         this.lineNumber = lineNumber;
@@ -178,10 +174,10 @@ public abstract class ScoreboardLine extends RefreshableFeature implements Line,
      * @return  number displayed
      */
     public int getNumber(@NonNull TabPlayer p) {
-        if (parent.getManager().isUsingNumbers() || p.getVersion().getMinorVersion() < 8 || p.isBedrockPlayer()) {
+        if (parent.getManager().getConfiguration().useNumbers || p.getVersion().getMinorVersion() < 8 || p.isBedrockPlayer()) {
             return parent.getLines().size() + 1 - lineNumber;
         } else {
-            return parent.getManager().getStaticNumber();
+            return parent.getManager().getConfiguration().staticNumber;
         }
     }
 
@@ -268,5 +264,17 @@ public abstract class ScoreboardLine extends RefreshableFeature implements Line,
     @NotNull
     public ThreadExecutor getCustomThread() {
         return parent.getCustomThread();
+    }
+
+    @NotNull
+    @Override
+    public String getFeatureName() {
+        return parent.getFeatureName();
+    }
+
+    @NotNull
+    @Override
+    public String getRefreshDisplayName() {
+        return "Updating Scoreboard lines";
     }
 }

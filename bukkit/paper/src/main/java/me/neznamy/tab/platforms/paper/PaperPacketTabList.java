@@ -55,7 +55,7 @@ public class PaperPacketTabList extends TabListBase<Component> {
     }
 
     @Override
-    public void removeEntry0(@NonNull UUID entry) {
+    public void removeEntry(@NonNull UUID entry) {
         sendPacket(new ClientboundPlayerInfoRemovePacket(Collections.singletonList(entry)));
     }
 
@@ -88,10 +88,17 @@ public class PaperPacketTabList extends TabListBase<Component> {
     }
 
     @Override
-    public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency, int gameMode, @Nullable Component displayName) {
+    public void updateListOrder(@NonNull UUID entry, int listOrder) {
+        // TODO update module to 1.21.2 when it comes out
+    }
+
+    @Override
+    public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency,
+                         int gameMode, @Nullable Component displayName, int listOrder) {
         sendPacket(new ClientboundPlayerInfoUpdatePacket(addPlayer, new ClientboundPlayerInfoUpdatePacket.Entry(
                 id, createProfile(id, name, skin), listed, latency, GameType.byId(gameMode), displayName, null
         )));
+        // TODO update module to 1.21.2 when it comes out
     }
 
     @Override
@@ -111,7 +118,7 @@ public class PaperPacketTabList extends TabListBase<Component> {
                 Component displayName = nmsData.displayName();
                 int latency = nmsData.latency();
                 if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME)) {
-                    Component expectedDisplayName = getExpectedDisplayName(nmsData.profileId());
+                    Component expectedDisplayName = getExpectedDisplayNames().get(nmsData.profileId());
                     if (expectedDisplayName != null) {
                         displayName = expectedDisplayName;
                         rewriteEntry = rewritePacket = true;

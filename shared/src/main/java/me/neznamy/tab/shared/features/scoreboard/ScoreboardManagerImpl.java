@@ -2,11 +2,15 @@ package me.neznamy.tab.shared.features.scoreboard;
 
 import lombok.Getter;
 import lombok.NonNull;
+import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.api.scoreboard.ScoreboardManager;
 import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.config.files.config.ScoreboardConfiguration;
+import me.neznamy.tab.shared.config.files.config.ScoreboardConfiguration.ScoreboardDefinition;
 import me.neznamy.tab.shared.cpu.ThreadExecutor;
 import me.neznamy.tab.shared.cpu.TimedCaughtTask;
+import me.neznamy.tab.shared.features.scoreboard.lines.ScoreboardLine;
 import me.neznamy.tab.shared.platform.decorators.SafeScoreboard;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabPlayer;
@@ -34,21 +38,15 @@ public class ScoreboardManagerImpl extends RefreshableFeature implements Scorebo
     @Getter
     private final ThreadExecutor customThread = new ThreadExecutor("TAB Scoreboard Thread");
 
-    //config options
-    @Getter private final String command = config().getString("scoreboard.toggle-command", "/sb");
-    @Getter private final boolean usingNumbers = config().getBoolean("scoreboard.use-numbers", false);
-    private final boolean rememberToggleChoice = config().getBoolean("scoreboard.remember-toggle-choice", false);
-    private final boolean hiddenByDefault = config().getBoolean("scoreboard.hidden-by-default", false);
-    @Getter private final int staticNumber = config().getInt("scoreboard.static-number", 0);
-    private final int joinDelay = config().getInt("scoreboard.delay-on-join-milliseconds", 0);
+    @Getter
+    private final ScoreboardConfiguration configuration;
 
     //defined scoreboards
     @Getter private final Map<String, me.neznamy.tab.api.scoreboard.Scoreboard> registeredScoreboards = new LinkedHashMap<>();
     private me.neznamy.tab.api.scoreboard.Scoreboard[] definedScoreboards;
 
     //list of players with disabled scoreboard
-    private final List<String> sbOffPlayers = rememberToggleChoice ? TAB.getInstance().getConfiguration().getPlayerDataFile()
-            .getStringList("scoreboard-off", new ArrayList<>()) : Collections.emptyList();
+    private final List<String> sbOffPlayers;
 
     //active scoreboard announcement
     @Nullable
@@ -56,36 +54,21 @@ public class ScoreboardManagerImpl extends RefreshableFeature implements Scorebo
 
     /**
      * Constructs new instance and loads config options.
+     *
+     * @param   configuration
+     *          Feature configuration
      */
-    public ScoreboardManagerImpl() {
-        super("Scoreboard", "Switching scoreboards");
+    public ScoreboardManagerImpl(@NotNull ScoreboardConfiguration configuration) {
+        this.configuration = configuration;
+        sbOffPlayers = configuration.rememberToggleChoice ? TAB.getInstance().getConfiguration().getPlayerDataFile()
+                .getStringList("scoreboard-off", new ArrayList<>()) : Collections.emptyList();
     }
 
     @Override
     public void load() {
-        Map<String, Map<String, Object>> map = config().getConfigurationSection("scoreboard.scoreboards");
-        boolean noConditionScoreboardFound = false;
-        String noConditionScoreboard = null;
-        for (Entry<String, Map<String, Object>> entry : map.entrySet()) {
+        for (Entry<String, ScoreboardDefinition> entry : configuration.scoreboards.entrySet()) {
             String scoreboardName = entry.getKey();
-            if (entry.getValue() == null) {
-                TAB.getInstance().getConfigHelper().startup().invalidScoreboardSection(scoreboardName);
-                continue;
-            }
-            TAB.getInstance().getConfigHelper().startup().checkForInvalidObjectProperties("scoreboard", scoreboardName, entry.getValue(), Arrays.asList("title", "lines", "display-condition"));
-            String condition = (String) entry.getValue().get("display-condition");
-            if (condition == null || condition.isEmpty()) {
-                noConditionScoreboardFound = true;
-                noConditionScoreboard = scoreboardName;
-            } else if (noConditionScoreboardFound) {
-                TAB.getInstance().getConfigHelper().startup().nonLastNoConditionScoreboard(noConditionScoreboard, scoreboardName);
-            }
-            String title = TAB.getInstance().getConfigHelper().startup().fromMapOrElse(entry.getValue(), "title", "<Title not defined>",
-                    "Scoreboard \"" + scoreboardName + "\" is missing title!");
-            List<String> lines = TAB.getInstance().getConfigHelper().startup().fromMapOrElse(entry.getValue(), "lines",
-                    Arrays.asList("scoreboard \"" + scoreboardName +"\" is missing \"lines\" keyword!", "did you forget to configure it or just your spacing is wrong?"),
-                    "Scoreboard \"" + scoreboardName + "\" is missing lines!");
-            ScoreboardImpl sb = new ScoreboardImpl(this, scoreboardName, title, lines, condition);
+            ScoreboardImpl sb = new ScoreboardImpl(this, scoreboardName, entry.getValue());
             registeredScoreboards.put(scoreboardName, sb);
             TAB.getInstance().getFeatureManager().registerFeature(TabConstants.Feature.scoreboardLine(scoreboardName), sb);
         }
@@ -93,6 +76,12 @@ public class ScoreboardManagerImpl extends RefreshableFeature implements Scorebo
         for (TabPlayer p : TAB.getInstance().getOnlinePlayers()) {
             onJoin(p);
         }
+    }
+
+    @NotNull
+    @Override
+    public String getRefreshDisplayName() {
+        return "Switching scoreboards";
     }
 
     @Override
@@ -107,15 +96,15 @@ public class ScoreboardManagerImpl extends RefreshableFeature implements Scorebo
         ((SafeScoreboard<?>)connectedPlayer.getScoreboard()).setAntiOverrideScoreboard(true);
         TAB.getInstance().getPlaceholderManager().getTabExpansion().setScoreboardName(connectedPlayer, "");
         TAB.getInstance().getPlaceholderManager().getTabExpansion().setScoreboardVisible(connectedPlayer, false);
-        if (joinDelay > 0) {
+        if (configuration.joinDelay > 0) {
             connectedPlayer.scoreboardData.joinDelayed = true;
             customThread.executeLater(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
                 if (connectedPlayer.scoreboardData.otherPluginScoreboard == null)
-                    setScoreboardVisible(connectedPlayer, hiddenByDefault == sbOffPlayers.contains(connectedPlayer.getName()), false);
+                    setScoreboardVisible(connectedPlayer, configuration.hiddenByDefault == sbOffPlayers.contains(connectedPlayer.getName()), false);
                 connectedPlayer.scoreboardData.joinDelayed = false;
-            }, getFeatureName(), TabConstants.CpuUsageCategory.PLAYER_JOIN), joinDelay);
+            }, getFeatureName(), TabConstants.CpuUsageCategory.PLAYER_JOIN), configuration.joinDelay);
         } else {
-            setScoreboardVisible(connectedPlayer, hiddenByDefault == sbOffPlayers.contains(connectedPlayer.getName()), false);
+            setScoreboardVisible(connectedPlayer, configuration.hiddenByDefault == sbOffPlayers.contains(connectedPlayer.getName()), false);
         }
     }
 
@@ -169,11 +158,17 @@ public class ScoreboardManagerImpl extends RefreshableFeature implements Scorebo
 
     @Override
     public boolean onCommand(@NotNull TabPlayer sender, @NotNull String message) {
-        if (message.equals(command)) {
+        if (message.equals(configuration.toggleCommand)) {
             TAB.getInstance().getCommand().execute(sender, new String[] {"scoreboard"});
             return true;
         }
         return false;
+    }
+
+    @Override
+    @NotNull
+    public String getCommand() {
+        return configuration.toggleCommand;
     }
 
     @Override
@@ -219,7 +214,7 @@ public class ScoreboardManagerImpl extends RefreshableFeature implements Scorebo
     @NotNull
     public me.neznamy.tab.api.scoreboard.Scoreboard createScoreboard(@NonNull String name, @NonNull String title, @NonNull List<String> lines) {
         ensureActive();
-        me.neznamy.tab.api.scoreboard.Scoreboard sb = new ScoreboardImpl(this, name, title, lines, true);
+        me.neznamy.tab.api.scoreboard.Scoreboard sb = new ScoreboardImpl(this, name, new ScoreboardDefinition(null, title, lines), true);
         registeredScoreboards.put(name, sb);
         definedScoreboards = registeredScoreboards.values().toArray(new me.neznamy.tab.api.scoreboard.Scoreboard[0]);
         return sb;
@@ -283,8 +278,8 @@ public class ScoreboardManagerImpl extends RefreshableFeature implements Scorebo
             if (sendToggleMessage) {
                 player.sendMessage(TAB.getInstance().getConfiguration().getMessages().getScoreboardOn(), true);
             }
-            if (rememberToggleChoice) {
-                if (hiddenByDefault) {
+            if (configuration.rememberToggleChoice) {
+                if (configuration.hiddenByDefault) {
                     if (!sbOffPlayers.contains(player.getName())) {
                         sbOffPlayers.add(player.getName());
                         savePlayers();
@@ -301,8 +296,8 @@ public class ScoreboardManagerImpl extends RefreshableFeature implements Scorebo
             if (sendToggleMessage) {
                 player.sendMessage(TAB.getInstance().getConfiguration().getMessages().getScoreboardOff(), true);
             }
-            if (rememberToggleChoice) {
-                if (hiddenByDefault) {
+            if (configuration.rememberToggleChoice) {
+                if (configuration.hiddenByDefault) {
                     if (sbOffPlayers.remove(player.getName())) {
                         savePlayers();
                     }
@@ -356,6 +351,12 @@ public class ScoreboardManagerImpl extends RefreshableFeature implements Scorebo
         return ((TabPlayer)player).scoreboardData.activeScoreboard;
     }
 
+    @NotNull
+    @Override
+    public String getFeatureName() {
+        return "Scoreboard";
+    }
+
     /**
      * Class storing scoreboard data of players.
      */
@@ -378,5 +379,21 @@ public class ScoreboardManagerImpl extends RefreshableFeature implements Scorebo
         /** Scoreboard sent by another plugin (objective name) */
         @Nullable
         public String otherPluginScoreboard;
+
+        /** Property of scoreboard title of scoreboard the player can currently see */
+        @Nullable
+        public Property titleProperty;
+
+        /** Map of line text properties */
+        @NotNull
+        public final Map<ScoreboardLine, Property> lineProperties = new IdentityHashMap<>();
+
+        /** Map of line player name properties (used in long lines) */
+        @NotNull
+        public final Map<ScoreboardLine, Property> lineNameProperties = new IdentityHashMap<>();
+
+        /** Map of line NumberFormat properties */
+        @NotNull
+        public final Map<ScoreboardLine, Property> numberFormatProperties = new IdentityHashMap<>();
     }
 }

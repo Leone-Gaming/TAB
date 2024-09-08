@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import me.neznamy.tab.api.tablist.SortingManager;
 import me.neznamy.tab.shared.Limitations;
+import me.neznamy.tab.shared.config.files.config.SortingConfiguration;
 import me.neznamy.tab.shared.features.types.JoinListener;
 import me.neznamy.tab.shared.features.types.Loadable;
 import me.neznamy.tab.shared.features.types.RefreshableFeature;
@@ -40,18 +41,22 @@ public class Sorting extends RefreshableFeature implements SortingManager, JoinL
     
     //map of all registered sorting types
     private final Map<String, BiFunction<Sorting, String, SortingType>> types = new LinkedHashMap<>();
-    
-    //if sorting is case-sensitive or not
-    @Getter private final boolean caseSensitiveSorting = config().getBoolean("scoreboard-teams.case-sensitive-sorting", true);
+
+    @Getter
+    @NotNull
+    private final SortingConfiguration configuration;
     
     //active sorting types
     private final SortingType[] usedSortingTypes;
     
     /**
-     * Constructs new instance and loads config options
+     * Constructs new instance.
+     *
+     * @param   configuration
+     *          Feature configuration
      */
-    public Sorting() {
-        super("Sorting", "Updating team names");
+    public Sorting(@NotNull SortingConfiguration configuration) {
+        this.configuration = configuration;
         types.put("GROUPS", Groups::new);
         types.put("PERMISSIONS", Permissions::new);
         types.put("PLACEHOLDER", Placeholder::new);
@@ -59,9 +64,15 @@ public class Sorting extends RefreshableFeature implements SortingManager, JoinL
         types.put("PLACEHOLDER_Z_TO_A", PlaceholderZtoA::new);
         types.put("PLACEHOLDER_LOW_TO_HIGH", PlaceholderLowToHigh::new);
         types.put("PLACEHOLDER_HIGH_TO_LOW", PlaceholderHighToLow::new);
-        usedSortingTypes = compile(config().getStringList("scoreboard-teams.sorting-types", new ArrayList<>()));
+        usedSortingTypes = compile(configuration.sortingTypes);
     }
-    
+
+    @NotNull
+    @Override
+    public String getRefreshDisplayName() {
+        return "Updating team names";
+    }
+
     @Override
     public void refresh(@NotNull TabPlayer p, boolean force) {
         String previousShortName = p.sortingData.shortTeamName;
@@ -128,7 +139,7 @@ public class Sorting extends RefreshableFeature implements SortingManager, JoinL
         if (shortName.length() >= Limitations.TEAM_NAME_LENGTH) {
             shortName.setLength(Limitations.TEAM_NAME_LENGTH-1);
         }
-        String finalShortName = checkTeamName(p, shortName, 'A');
+        String finalShortName = checkTeamName(p, shortName);
         p.sortingData.shortTeamName = finalShortName;
         p.sortingData.fullTeamName = fullName.append(finalShortName.charAt(finalShortName.length() - 1)).toString();
 
@@ -145,26 +156,34 @@ public class Sorting extends RefreshableFeature implements SortingManager, JoinL
      *          player to build team name for
      * @param   currentName
      *          current up to 15 character long team name start
-     * @param   id
-     *          current character to check as 16th character
      * @return  first available full team name
      */
-    private @NotNull String checkTeamName(@NotNull TabPlayer p, @NotNull StringBuilder currentName, int id) {
-        String potentialTeamName = currentName.toString() + (char)id;
-        for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
-            if (all == p) continue;
-            if (potentialTeamName.equals(all.sortingData.shortTeamName)) {
-                return checkTeamName(p, currentName, id+1);
-            }
-        }
-        if (redis != null && nameTags != null) {
-            for (RedisPlayer all : redis.getRedisPlayers().values()) {
-                if (potentialTeamName.equals(all.getTeamName())) {
-                    return checkTeamName(p, currentName, id+1);
+    @NotNull
+    private String checkTeamName(@NotNull TabPlayer p, @NotNull StringBuilder currentName) {
+        char id = 'A';
+        while (true) {
+            String potentialTeamName = currentName.toString() + id;
+            boolean nameTaken = false;
+            for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
+                if (all == p) continue;
+                if (potentialTeamName.equals(all.sortingData.shortTeamName)) {
+                    nameTaken = true;
+                    break;
                 }
             }
+            if (!nameTaken && redis != null && nameTags != null) {
+                for (RedisPlayer all : redis.getRedisPlayers().values()) {
+                    if (potentialTeamName.equals(all.getTeamName())) {
+                        nameTaken = true;
+                        break;
+                    }
+                }
+            }
+            if (!nameTaken) {
+                return potentialTeamName;
+            }
+            id++;
         }
-        return potentialTeamName;
     }
     
     /**
@@ -172,8 +191,15 @@ public class Sorting extends RefreshableFeature implements SortingManager, JoinL
      *
      * @return  user-friendly representation of sorting types
      */
-    public @NotNull String typesToString() {
+    @NotNull
+    public String typesToString() {
         return Arrays.stream(usedSortingTypes).map(SortingType::getDisplayName).collect(Collectors.joining(" -> "));
+    }
+
+    @NotNull
+    @Override
+    public String getFeatureName() {
+        return "Sorting";
     }
 
     // ------------------

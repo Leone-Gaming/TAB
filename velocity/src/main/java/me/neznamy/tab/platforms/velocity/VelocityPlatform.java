@@ -18,8 +18,12 @@ import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
 import me.neznamy.tab.shared.hook.AdventureHook;
 import me.neznamy.tab.shared.hook.PremiumVanishHook;
+import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.platform.Scoreboard;
+import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
+import me.neznamy.tab.shared.platform.impl.AdventureBossBar;
+import me.neznamy.tab.shared.platform.impl.BridgeScoreboard;
 import me.neznamy.tab.shared.proxy.ProxyPlatform;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.kyori.adventure.text.Component;
@@ -80,6 +84,13 @@ public class VelocityPlatform extends ProxyPlatform {
             } catch (IllegalStateException ignored) {
                 // Scoreboard API failed to enable due to an error
             }
+        } else {
+            logInfo(TabComponent.fromColoredText(EnumChatFormat.AQUA + "In order to speed up scoreboard packet sending and remove the need to use plugin messages, " +
+                    "a new plugin called VelocityScoreboardAPI was developed. When installed, TAB will use it as a primary solution for scoreboards instead of bridge. " +
+                    "Once TAB 5.0.0 releases, it will become mandatory for scoreboard features to work and bridge will no longer be supported as a scoreboard packet encoder. " +
+                    "If you wish to contribute back to the plugin you have been using for free, and want to accelerate its development to make the release more stable, please install this plugin on your server and report any issues you may run into. " +
+                    "In case anything bad happens, you can always uninstall it and keep using bridge for scoreboards until the issue is resolved, which will not be that easy in the future. " +
+                    "You can download the plugin from https://github.com/NEZNAMY/VelocityScoreboardAPI/releases/"));
         }
         if (plugin.getServer().getPluginManager().isLoaded("premiumvanish")) {
             PremiumVanishHook.setInstance(new VelocityPremiumVanishHook());
@@ -147,6 +158,28 @@ public class VelocityPlatform extends ProxyPlatform {
     @NotNull
     public Component convertComponent(@NotNull TabComponent component, boolean modern) {
         return AdventureHook.toAdventureComponent(component, modern);
+    }
+
+    @Override
+    @NotNull
+    public Scoreboard createScoreboard(@NotNull TabPlayer player) {
+        if (scoreboardAPI) {
+            return new VelocityScoreboard((VelocityTabPlayer) player);
+        } else {
+            return new BridgeScoreboard((VelocityTabPlayer) player);
+        }
+    }
+
+    @Override
+    @NotNull
+    public BossBar createBossBar(@NotNull TabPlayer player) {
+        return new AdventureBossBar(player);
+    }
+
+    @Override
+    @NotNull
+    public TabList createTabList(@NotNull TabPlayer player) {
+        return new VelocityTabList((VelocityTabPlayer) player);
     }
 
     @Override
