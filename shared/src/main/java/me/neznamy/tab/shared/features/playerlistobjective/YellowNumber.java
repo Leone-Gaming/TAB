@@ -41,9 +41,6 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
      */
     public static final String OBJECTIVE_NAME = "TAB-PlayerList";
 
-    /**
-     * Scoreboard title which is unused in java
-     */
     /** Scoreboard title which is unused in java */
     private static final TabComponent TITLE = new SimpleComponent("Java Edition is better"); // Unused by this objective slot (on Java, only visible on Bedrock)
 
