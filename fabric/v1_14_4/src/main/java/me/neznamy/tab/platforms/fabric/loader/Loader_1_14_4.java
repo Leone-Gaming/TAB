@@ -73,16 +73,16 @@ public class Loader_1_14_4 implements Loader {
 
     @Override
     @NotNull
-    public Style convertModifier(@NotNull ChatModifier modifier, boolean modern) {
+    public Style convertModifier(@NotNull ChatModifier modifier) {
         Style style = new Style();
         if (modifier.getColor() != null) {
             style.setColor(ChatFormatting.valueOf(modifier.getColor().getLegacyColor().name()));
         }
-        if (modifier.isBold()) style.setBold(true);
-        if (modifier.isItalic()) style.setItalic(true);
-        if (modifier.isStrikethrough()) style.setStrikethrough(true);
-        if (modifier.isUnderlined()) style.setUnderlined(true);
-        if (modifier.isObfuscated()) style.setObfuscated(true);
+        style.setBold(modifier.getBold());
+        style.setItalic(modifier.getItalic());
+        style.setStrikethrough(modifier.getStrikethrough());
+        style.setUnderlined(modifier.getUnderlined());
+        style.setObfuscated(modifier.getObfuscated());
         return style;
     }
 
@@ -252,5 +252,11 @@ public class Loader_1_14_4 implements Loader {
     public void logWarn(@NotNull TabComponent message) {
         Object logger = ReflectionUtils.getFields(MinecraftServer.class, Class.forName("org.apache.logging.log4j.Logger")).get(0).get(null);
         logger.getClass().getMethod("warn", String.class).invoke(logger, "[TAB] " + message.toRawText());
+    }
+
+    @NotNull
+    @Override
+    public CommandSourceStack createCommandSourceStack(@NotNull ServerPlayer player) {
+        return player.createCommandSourceStack();
     }
 }

@@ -64,28 +64,15 @@ public class Loader_Latest implements Loader {
 
     @Override
     @NotNull
-    public Style convertModifier(@NotNull ChatModifier modifier, boolean modern) {
-        TextColor color = null;
-        if (modifier.getColor() != null) {
-            if (modern) {
-                color = TextColor.fromRgb(modifier.getColor().getRgb());
-            } else {
-                color = TextColor.fromRgb(modifier.getColor().getLegacyColor().getRgb());
-            }
-        }
-
-        return new Style(
-                color,
-                modifier.isBold(),
-                modifier.isItalic(),
-                modifier.isUnderlined(),
-                modifier.isStrikethrough(),
-                modifier.isObfuscated(),
-                null,
-                null,
-                null,
-                modifier.getFont() == null ? null : ResourceLocation.tryParse(modifier.getFont())
-        );
+    public Style convertModifier(@NotNull ChatModifier modifier) {
+        return Style.EMPTY
+                .withColor(modifier.getColor() == null ? null : TextColor.fromRgb(modifier.getColor().getRgb()))
+                .withBold(modifier.getBold())
+                .withItalic(modifier.getItalic())
+                .withUnderlined(modifier.getUnderlined())
+                .withStrikethrough(modifier.getStrikethrough())
+                .withObfuscated(modifier.getObfuscated())
+                .withFont(modifier.getFont() == null ? null : ResourceLocation.tryParse(modifier.getFont()));
     }
 
     @Override
@@ -160,7 +147,7 @@ public class Loader_Latest implements Loader {
                 TAB.getInstance().getFeatureManager().onEntryAdd(receiver, nmsData.profileId(), profile.getName());
             }
             updatedList.add(new ClientboundPlayerInfoUpdatePacket.Entry(nmsData.profileId(), profile, nmsData.listed(),
-                    latency, nmsData.gameMode(), displayName, nmsData.listOrder(), nmsData.chatSession()));
+                    latency, nmsData.gameMode(), displayName, nmsData.showHat(), nmsData.listOrder(), nmsData.chatSession()));
         }
         packet.entries = updatedList;
     }
@@ -179,6 +166,7 @@ public class Loader_Latest implements Loader {
                 entry.getLatency(),
                 GameType.byId(entry.getGameMode()),
                 entry.getDisplayName(),
+                entry.isShowHat(),
                 entry.getListOrder(),
                 null
         ));
@@ -252,6 +240,12 @@ public class Loader_Latest implements Loader {
         MinecraftServer.LOGGER.warn("[TAB] " + message.toRawText());
     }
 
+    @NotNull
+    @Override
+    public CommandSourceStack createCommandSourceStack(@NotNull ServerPlayer player) {
+        return player.createCommandSourceStack();
+    }
+
     /**
      * Why is this needed? Because otherwise it throws error about a class
      * not existing despite the code never running.
@@ -289,6 +283,7 @@ public class Loader_Latest implements Loader {
             actions.put(TabList.Action.UPDATE_LATENCY, EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LATENCY));
             actions.put(TabList.Action.UPDATE_LISTED, EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LISTED));
             actions.put(TabList.Action.UPDATE_LIST_ORDER, EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LIST_ORDER));
+            actions.put(TabList.Action.UPDATE_HAT, EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_HAT));
             return actions;
         }
     }

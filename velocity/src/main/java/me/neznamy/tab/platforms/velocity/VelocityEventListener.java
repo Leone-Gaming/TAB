@@ -1,6 +1,5 @@
 package me.neznamy.tab.platforms.velocity;
 
-import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.command.CommandExecuteEvent;
 import com.velocitypowered.api.event.command.CommandExecuteEvent.CommandResult;
@@ -10,8 +9,8 @@ import com.velocitypowered.api.event.player.ServerPostConnectEvent;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.proxy.Player;
 import me.neznamy.tab.shared.ProtocolVersion;
-import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.features.bossbar.BossBarManagerImpl;
 import me.neznamy.tab.shared.features.scoreboard.ScoreboardManagerImpl;
 import me.neznamy.tab.shared.platform.EventListener;
@@ -19,11 +18,18 @@ import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.platform.decorators.SafeBossBar;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * The core for Velocity forwarding events into all enabled features
  */
 @SuppressWarnings("UnstableApiUsage")
 public class VelocityEventListener implements EventListener<Player> {
+
+    /** Map for tracking online players */
+    private final Map<Player, UUID> players = new ConcurrentHashMap<>();
 
     /**
      * Listens to player disconnecting from the server.
@@ -33,7 +39,11 @@ public class VelocityEventListener implements EventListener<Player> {
      */
     @Subscribe
     public void onQuit(@NotNull DisconnectEvent e) {
-        quit(e.getPlayer().getUniqueId());
+        if (TAB.getInstance().isPluginDisabled()) return;
+        // Check if the player was actually connected to the server in the first place to avoid processing
+        // disconnect of an existing player who is still there (because players are mapped by UUID in TAB)
+        UUID id = players.remove(e.getPlayer());
+        if (id != null) quit(id);
     }
 
     /**
@@ -43,8 +53,9 @@ public class VelocityEventListener implements EventListener<Player> {
      * @param   e
      *          Event fired before player switches server for proper freezing
      */
-    @Subscribe(order = PostOrder.LAST)
+    @Subscribe
     public void preConnect(@NotNull ServerPreConnectEvent e) {
+        if (TAB.getInstance().isPluginDisabled()) return;
         if (e.getResult().isAllowed()) {
             TabPlayer p = TAB.getInstance().getPlayer(e.getPlayer().getUniqueId());
             if (p != null && p.getVersion().getNetworkId() >= ProtocolVersion.V1_20_2.getNetworkId()) {
@@ -67,6 +78,7 @@ public class VelocityEventListener implements EventListener<Player> {
         tab.getCPUManager().runTask(() -> {
             TabPlayer player = tab.getPlayer(e.getPlayer().getUniqueId());
             if (player == null) {
+                players.put(e.getPlayer(), e.getPlayer().getUniqueId());
                 tab.getFeatureManager().onJoin(createPlayer(e.getPlayer()));
             } else {
                 if (!(player.getScoreboard() instanceof VelocityScoreboard)) player.getScoreboard().resend();
@@ -90,13 +102,15 @@ public class VelocityEventListener implements EventListener<Player> {
      */
     @Subscribe
     public void onCommand(@NotNull CommandExecuteEvent e) {
+        if (TAB.getInstance().isPluginDisabled()) return;
+        String command = TAB.getInstance().getPlatform().getCommand();
         BossBarManagerImpl bossBarManager = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.BOSS_BAR);
         if (bossBarManager != null && bossBarManager.getCommand().substring(1).equals(e.getCommand())) {
-            e.setResult(CommandResult.command(TabConstants.COMMAND_PROXY + " bossbar"));
+            e.setResult(CommandResult.command(command + " bossbar"));
         }
         ScoreboardManagerImpl scoreboard = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.SCOREBOARD);
         if (scoreboard != null && scoreboard.getCommand().substring(1).equals(e.getCommand())) {
-            e.setResult(CommandResult.command(TabConstants.COMMAND_PROXY + " scoreboard"));
+            e.setResult(CommandResult.command(command + " scoreboard"));
         }
     }
 
@@ -108,6 +122,7 @@ public class VelocityEventListener implements EventListener<Player> {
      */
     @Subscribe
     public void onPluginMessageEvent(@NotNull PluginMessageEvent e) {
+        if (TAB.getInstance().isPluginDisabled()) return;
         if (!e.getIdentifier().getId().equals(TabConstants.PLUGIN_MESSAGE_CHANNEL_NAME)) return;
         if (e.getTarget() instanceof Player) {
             e.setResult(PluginMessageEvent.ForwardResult.handled());

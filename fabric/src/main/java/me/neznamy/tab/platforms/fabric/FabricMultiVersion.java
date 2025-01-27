@@ -35,6 +35,9 @@ public class FabricMultiVersion {
     /** Method loader using latest supported MC version */
     private static final Loader loaderLatest = new Loader_Latest();
 
+    /** Method loader using 1.21.2 - 1.21.3 */
+    private static final Loader loader1_21_3 = createLoader("1_21_3");
+
     /** Method loader using 1.20.3 - 1.21.1 */
     private static final Loader loader1_20_3 = createLoader("1_20_3");
 
@@ -81,14 +84,12 @@ public class FabricMultiVersion {
      *
      * @param   modifier
      *          Modifier to convert
-     * @param   modern
-     *          Whether RGB should be supported or not
      * @return  Converted style
      */
     @NotNull
-    public static Style convertModifier(@NotNull ChatModifier modifier, boolean modern) {
-        if (serverVersion.getMinorVersion() >= 16) return loaderLatest.convertModifier(modifier, modern);
-        return loader1_14_4.convertModifier(modifier, modern);
+    public static Style convertModifier(@NotNull ChatModifier modifier) {
+        if (serverVersion.getMinorVersion() >= 16) return loaderLatest.convertModifier(modifier);
+        return loader1_14_4.convertModifier(modifier);
     }
 
     /**
@@ -229,7 +230,8 @@ public class FabricMultiVersion {
      *          Message to send
      */
     public static void sendMessage(@NotNull ServerPlayer player, @NotNull Component message) {
-        if (serverVersion.getMinorVersion() >= 19) loaderLatest.sendMessage(player, message);
+        if (serverVersion.getNetworkId() >= ProtocolVersion.V1_21_2.getNetworkId()) loaderLatest.sendMessage(player, message);
+        else if (serverVersion.getMinorVersion() >= 19) loader1_20_3.sendMessage(player, message);
         else if (serverVersion.getMinorVersion() >= 16) loader1_18_2.sendMessage(player, message);
         else loader1_14_4.sendMessage(player, message);
     }
@@ -255,7 +257,8 @@ public class FabricMultiVersion {
      *          Received packet
      */
     public static void onPlayerInfo(@NotNull TabPlayer receiver, @NotNull Object packet) {
-        if (serverVersion.getNetworkId() >= ProtocolVersion.V1_21_2.getNetworkId()) loaderLatest.onPlayerInfo(receiver, packet);
+        if (serverVersion.getNetworkId() >= ProtocolVersion.V1_21_4.getNetworkId()) loaderLatest.onPlayerInfo(receiver, packet);
+        else if (serverVersion.getNetworkId() >= ProtocolVersion.V1_21_2.getNetworkId()) loader1_21_3.onPlayerInfo(receiver, packet);
         else if (serverVersion.getNetworkId() >= ProtocolVersion.V1_19_3.getNetworkId()) loader1_20_3.onPlayerInfo(receiver, packet);
         else if (serverVersion.getMinorVersion() >= 17) loader1_18_2.onPlayerInfo(receiver, packet);
         else loader1_14_4.onPlayerInfo(receiver, packet);
@@ -272,7 +275,8 @@ public class FabricMultiVersion {
      */
     @NotNull
     public static Packet<?> buildTabListPacket(@NotNull TabList.Action action, @NotNull FabricTabList.Builder builder) {
-        if (serverVersion.getNetworkId() >= ProtocolVersion.V1_21_2.getNetworkId()) return loaderLatest.buildTabListPacket(action, builder);
+        if (serverVersion.getNetworkId() >= ProtocolVersion.V1_21_4.getNetworkId()) return loaderLatest.buildTabListPacket(action, builder);
+        if (serverVersion.getNetworkId() >= ProtocolVersion.V1_21_2.getNetworkId()) return loader1_21_3.buildTabListPacket(action, builder);
         if (serverVersion.getNetworkId() >= ProtocolVersion.V1_19_3.getNetworkId()) return loader1_20_3.buildTabListPacket(action, builder);
         if (serverVersion.getMinorVersion() >= 17) return loader1_18_2.buildTabListPacket(action, builder);
         return loader1_14_4.buildTabListPacket(action, builder);
@@ -424,5 +428,18 @@ public class FabricMultiVersion {
         if (serverVersion.getNetworkId() >= ProtocolVersion.V1_20_5.getNetworkId()) return loaderLatest.setScore(objective, holder, score, displayName, numberFormat);
         if (serverVersion.getNetworkId() >= ProtocolVersion.V1_20_3.getNetworkId()) return loader1_20_3.setScore(objective, holder, score, displayName, numberFormat);
         return loader1_14_4.setScore(objective, holder, score, displayName, numberFormat);
+    }
+
+    /**
+     * Creates command source stack from ServerPlayer.
+     *
+     * @param   player
+     *          Player to create command source stack from
+     * @return  command source stack from player
+     */
+    @NotNull
+    public static CommandSourceStack createCommandSourceStack(@NotNull ServerPlayer player) {
+        if (serverVersion.getNetworkId() >= ProtocolVersion.V1_21_2.getNetworkId()) return loaderLatest.createCommandSourceStack(player);
+        return loader1_14_4.createCommandSourceStack(player);
     }
 }

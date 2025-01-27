@@ -2,8 +2,7 @@ package me.neznamy.tab.shared.config.helper;
 
 import me.neznamy.tab.api.bossbar.BossBar;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.tab.shared.chat.SimpleComponent;
 import me.neznamy.tab.shared.features.sorting.types.SortingType;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.proxy.ProxyTabPlayer;
@@ -92,34 +91,34 @@ public class RuntimeErrorPrinter {
         // Placeholders are not initialized, because bridge did not respond yet (typically on join)
         if (target instanceof ProxyTabPlayer && !((ProxyTabPlayer)target).isBridgeConnected()) return;
 
-        error(EnumChatFormat.decolor(String.format("Belowname number is configured to show \"%s\", but returned \"%s\" for player %s, which cannot be evaluated to a number.",
-                configuredValue, output, target.getName())));
+        error(String.format("Belowname number is configured to show \"%s\", but returned \"%s\" for player %s, which cannot be evaluated to a number.",
+                configuredValue, output, target.getName()));
     }
 
     public void floatInBelowName(@NotNull TabPlayer target, @NotNull String configuredValue, @NotNull String output) {
         // Placeholders are not initialized, because bridge did not respond yet (typically on join)
         if (target instanceof ProxyTabPlayer && !((ProxyTabPlayer)target).isBridgeConnected()) return;
 
-        error(EnumChatFormat.decolor(String.format("Belowname number is configured to show \"%s\", but returned \"%s\" " +
+        error(String.format("Belowname number is configured to show \"%s\", but returned \"%s\" " +
                         "for player %s, which is a decimal number. Truncating to an integer.",
-                configuredValue, output, target.getName())));
+                configuredValue, output, target.getName()));
     }
 
     public void invalidNumberForPlayerlistObjective(@NotNull TabPlayer target, @NotNull String configuredValue, @NotNull String output) {
         // Placeholders are not initialized, because bridge did not respond yet (typically on join)
         if (target instanceof ProxyTabPlayer && !((ProxyTabPlayer)target).isBridgeConnected()) return;
 
-        error(EnumChatFormat.decolor(String.format("Playerlist objective number is configured to show \"%s\", but returned \"%s\" for player %s, which cannot be evaluated to a number.",
-                configuredValue, output, target.getName())));
+        error(String.format("Playerlist objective value is configured to show \"%s\", but returned \"%s\" for player %s, which cannot be evaluated to a number.",
+                configuredValue, output, target.getName()));
     }
 
     public void floatInPlayerlistObjective(@NotNull TabPlayer target, @NotNull String configuredValue, @NotNull String output) {
         // Placeholders are not initialized, because bridge did not respond yet (typically on join)
         if (target instanceof ProxyTabPlayer && !((ProxyTabPlayer)target).isBridgeConnected()) return;
 
-        error(EnumChatFormat.decolor(String.format("Playerlist objective number is configured to show \"%s\", but returned \"%s\" " +
+        error(String.format("Playerlist objective value is configured to show \"%s\", but returned \"%s\" " +
                         "for player %s, which is a decimal number. Truncating to an integer.",
-                configuredValue, output, target.getName())));
+                configuredValue, output, target.getName()));
     }
 
     /**
@@ -198,7 +197,7 @@ public class RuntimeErrorPrinter {
      * @param   message
      *          Message to log
      */
-    private void error(@NotNull String message) {
-        TAB.getInstance().getPlatform().logWarn(TabComponent.fromColoredText(message));
+    public void error(@NotNull String message) {
+        TAB.getInstance().getPlatform().logWarn(new SimpleComponent(message.replace('§', '&')));
     }
 }

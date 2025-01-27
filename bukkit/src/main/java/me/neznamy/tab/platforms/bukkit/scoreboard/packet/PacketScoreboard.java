@@ -141,7 +141,7 @@ public class PacketScoreboard extends SafeScoreboard<BukkitTabPlayer> {
     @Override
     public void setScore(@NonNull Score score) {
         packetSender.sendPacket(player, scorePacketData.setScore(score.getObjective().getName(), score.getHolder(), score.getValue(),
-                score.getDisplayName() == null ? null : score.getDisplayName().convert(player.getVersion()),
+                score.getDisplayName() == null ? null : score.getDisplayName().convert(),
                 score.getNumberFormat() == null ? null : toFixedFormat(score.getNumberFormat())));
     }
 
@@ -202,7 +202,7 @@ public class PacketScoreboard extends SafeScoreboard<BukkitTabPlayer> {
                     emptyScoreboard,
                     objective.getName(),
                     null, // Criteria
-                    objective.getTitle().convert(player.getVersion()),
+                    objective.getTitle().convert(),
                     healthDisplays[objective.getHealthDisplay().ordinal()],
                     false, // Auto update
                     objective.getNumberFormat() == null ? null : toFixedFormat(objective.getNumberFormat())
@@ -214,14 +214,17 @@ public class PacketScoreboard extends SafeScoreboard<BukkitTabPlayer> {
                     emptyScoreboard,
                     objective.getName(),
                     null, // Criteria
-                    objective.getTitle().convert(player.getVersion()),
+                    objective.getTitle().convert(),
                     healthDisplays[objective.getHealthDisplay().ordinal()]
             );
         }
         // 1.5 - 1.12.2
         Object nmsObjective = newScoreboardObjective.newInstance(emptyScoreboard, objective.getName(), IScoreboardCriteria_dummy);
-        String cutTitle = player.getVersion().getMinorVersion() >= 13 ? objective.getTitle().toLegacyText() : cutTo(objective.getTitle().toLegacyText(), Limitations.SCOREBOARD_TITLE_PRE_1_13);
-        ScoreboardObjective_setDisplayName.invoke(nmsObjective, cutTitle);
+        String title = objective.getTitle().toLegacyText();
+        if (player.getVersion().getMinorVersion() < 13 || TAB.getInstance().getConfiguration().getConfig().isPacketEventsCompensation()) {
+            title = cutTo(title, Limitations.SCOREBOARD_TITLE_PRE_1_13);
+        }
+        ScoreboardObjective_setDisplayName.invoke(nmsObjective, title);
         return nmsObjective;
     }
 

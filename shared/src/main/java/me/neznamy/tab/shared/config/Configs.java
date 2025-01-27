@@ -7,8 +7,8 @@ import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.config.file.ConfigurationFile;
 import me.neznamy.tab.shared.config.file.YamlConfigurationFile;
 import me.neznamy.tab.shared.config.file.YamlPropertyConfigurationFile;
-import me.neznamy.tab.shared.config.files.animations.Animations;
-import me.neznamy.tab.shared.config.files.config.Config;
+import me.neznamy.tab.shared.config.files.Animations;
+import me.neznamy.tab.shared.config.files.Config;
 import me.neznamy.tab.shared.config.mysql.MySQL;
 import me.neznamy.tab.shared.config.mysql.MySQLGroupConfiguration;
 import me.neznamy.tab.shared.config.mysql.MySQLUserConfiguration;
@@ -58,7 +58,7 @@ public class Configs {
     public Configs() throws IOException {
         File errorLog = TAB.getInstance().getErrorManager().getErrorLog();
         if (errorLog.length() > TabConstants.MAX_LOG_SIZE) {
-            TAB.getInstance().getConfigHelper().startup().startupWarn(errorLog, "The file has reached its size limit (1MB). No new errors will be logged. " +
+            TAB.getInstance().getConfigHelper().startup().startupWarn(errorLog, "The file has reached its size limit (16MB). No new errors will be logged. " +
                     "Take a look at the existing logged errors, as they may have caused the plugin to not work properly " +
                     "in the past and if not fixed, will most likely cause problems in the future as well. If you are using latest version " +
                     "of the plugin, consider reporting them.");

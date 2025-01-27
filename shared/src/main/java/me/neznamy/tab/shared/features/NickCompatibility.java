@@ -6,7 +6,9 @@ import me.neznamy.tab.shared.TabConstants.CpuUsageCategory;
 import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.cpu.CpuManager;
 import me.neznamy.tab.shared.cpu.TimedCaughtTask;
+import me.neznamy.tab.shared.features.belowname.BelowName;
 import me.neznamy.tab.shared.features.nametags.NameTag;
+import me.neznamy.tab.shared.features.playerlistobjective.YellowNumber;
 import me.neznamy.tab.shared.features.redis.RedisPlayer;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
 import me.neznamy.tab.shared.features.types.EntryAddListener;
@@ -65,7 +67,7 @@ public class NickCompatibility extends TabFeature implements EntryAddListener {
     public void processNameChange(@NotNull TabPlayer player) {
         CpuManager cpu = TAB.getInstance().getCpu();
         cpu.getProcessingThread().execute(new TimedCaughtTask(cpu, () -> {
-            if (nameTags != null && !nameTags.hasTeamHandlingPaused(player))
+            if (nameTags != null && !player.teamData.isDisabled())
                 for (TabPlayer viewer : nameTags.getOnlinePlayers().getPlayers()) {
                     TabComponent prefix = nameTags.getCache().get(player.teamData.prefix.getFormat(viewer));
                     viewer.getScoreboard().unregisterTeam(player.sortingData.getShortTeamName());
@@ -77,7 +79,7 @@ public class NickCompatibility extends TabFeature implements EntryAddListener {
                             player.teamData.getCollisionRule() ? Scoreboard.CollisionRule.ALWAYS : Scoreboard.CollisionRule.NEVER,
                             Collections.singletonList(player.getNickname()),
                             nameTags.getTeamOptions(),
-                            prefix.getLastColor().getLegacyColor()
+                            prefix.getLastColor()
                     );
                 }
             if (belowname != null) belowname.processNicknameChange(player);
@@ -101,7 +103,7 @@ public class NickCompatibility extends TabFeature implements EntryAddListener {
                             Scoreboard.CollisionRule.ALWAYS,
                             Collections.singletonList(player.getNickname()),
                             nameTags.getTeamOptions(),
-                            prefix.getLastColor().getLegacyColor()
+                            prefix.getLastColor()
                     );
                 }
             }

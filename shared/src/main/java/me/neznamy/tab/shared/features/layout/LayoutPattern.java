@@ -4,9 +4,9 @@ import lombok.Getter;
 import lombok.NonNull;
 import me.neznamy.tab.api.tablist.layout.Layout;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.config.files.config.LayoutConfiguration.LayoutDefinition;
-import me.neznamy.tab.shared.config.files.config.LayoutConfiguration.LayoutDefinition.FixedSlotDefinition;
-import me.neznamy.tab.shared.config.files.config.LayoutConfiguration.LayoutDefinition.GroupPattern;
+import me.neznamy.tab.shared.features.layout.LayoutConfiguration.LayoutDefinition;
+import me.neznamy.tab.shared.features.layout.LayoutConfiguration.LayoutDefinition.FixedSlotDefinition;
+import me.neznamy.tab.shared.features.layout.LayoutConfiguration.LayoutDefinition.GroupPattern;
 import me.neznamy.tab.shared.features.types.RefreshableFeature;
 import me.neznamy.tab.shared.placeholders.conditions.Condition;
 import me.neznamy.tab.shared.platform.TabPlayer;
@@ -24,17 +24,16 @@ public class LayoutPattern extends RefreshableFeature implements Layout {
     private final Map<Integer, FixedSlot> fixedSlots = new HashMap<>();
     private final List<GroupPattern> groups = new ArrayList<>();
 
-    @SuppressWarnings("unchecked")
     public LayoutPattern(@NotNull LayoutManagerImpl manager, @NotNull String name, @NotNull LayoutDefinition def) {
         this.manager = manager;
         this.name = name;
-        condition = Condition.getCondition(def.condition);
+        condition = Condition.getCondition(def.getCondition());
         if (condition != null) manager.addUsedPlaceholder(TabConstants.Placeholder.condition(condition.getName()));
-        for (FixedSlotDefinition fixed : def.fixedSlots) {
+        for (FixedSlotDefinition fixed : def.getFixedSlots()) {
             addFixedSlot(fixed);
         }
-        for (Map.Entry<String, GroupPattern> entry : def.groups.entrySet()) {
-            addGroup(entry.getKey(), entry.getValue().condition, entry.getValue().slots);
+        for (Map.Entry<String, GroupPattern> entry : def.getGroups().entrySet()) {
+            addGroup(entry.getKey(), entry.getValue().getCondition(), entry.getValue().getSlots());
         }
     }
 
@@ -45,7 +44,7 @@ public class LayoutPattern extends RefreshableFeature implements Layout {
 
     public void addGroup(@NotNull String name, @Nullable String condition, int[] slots) {
         groups.add(new GroupPattern(name, condition, Arrays.stream(slots).filter(slot -> !fixedSlots.containsKey(slot)).toArray()));
-        if (condition != null) addUsedPlaceholder(TabConstants.Placeholder.condition(condition));
+        if (condition != null) addUsedPlaceholder(TabConstants.Placeholder.condition(Condition.getCondition(condition).getName()));
     }
 
     public boolean isConditionMet(@NotNull TabPlayer p) {
@@ -70,13 +69,13 @@ public class LayoutPattern extends RefreshableFeature implements Layout {
     @Override
     public void addFixedSlot(int slot, @NonNull String text) {
         ensureActive();
-        addFixedSlot(slot, text, manager.getConfiguration().getDefaultSkin(slot), manager.getConfiguration().emptySlotPing);
+        addFixedSlot(slot, text, manager.getConfiguration().getDefaultSkin(slot), manager.getConfiguration().getEmptySlotPing());
     }
 
     @Override
     public void addFixedSlot(int slot, @NonNull String text, @NonNull String skin) {
         ensureActive();
-        addFixedSlot(slot, text, skin, manager.getConfiguration().emptySlotPing);
+        addFixedSlot(slot, text, skin, manager.getConfiguration().getEmptySlotPing());
     }
 
     @Override
@@ -88,6 +87,7 @@ public class LayoutPattern extends RefreshableFeature implements Layout {
     @Override
     public void addFixedSlot(int slot, @NonNull String text, @NonNull String skin, int ping) {
         ensureActive();
+        if (slot < 1 || slot > 80) throw new IllegalArgumentException("Slot must be between 1 - 80 (was " + slot + ")");
         fixedSlots.put(slot, new FixedSlot(manager, slot, this, manager.getUUID(slot), text, skin, ping));
     }
 

@@ -24,7 +24,7 @@ public abstract class ConfigurationFile {
     protected List<String> header;
 
     /** Configuration file content */
-    @Getter @Setter protected Map<String, Object> values;
+    @Getter @Setter protected Map<Object, Object> values;
 
     /** File to use */
     @Getter protected final File file;
@@ -51,7 +51,6 @@ public abstract class ConfigurationFile {
             if (source == null) throw new IllegalStateException("File does not exist and source is null");
             Files.copy(source, file.toPath());
         }
-        detectHeader();
     }
 
     /**
@@ -291,7 +290,7 @@ public abstract class ConfigurationFile {
      * @param   <V>
      *          Map value type
      */
-    public @NotNull <K, V> Map<K, V> getConfigurationSection(@NonNull String path) {
+    public @NotNull <K, V> Map<K, V> getMap(@NonNull String path) {
         if (path.isEmpty()) return (Map<K, V>) values;
         Object value = getObject(path, null);
         if (value instanceof Map) {
@@ -338,14 +337,14 @@ public abstract class ConfigurationFile {
      *          Value to save
      * @return  the first argument to allow chaining
      */
-    private Map<String, Object> set(@NonNull Map<String, Object> map, @NonNull String path, @Nullable Object value) {
+    private Map<Object, Object> set(@NonNull Map<Object, Object> map, @NonNull String path, @Nullable Object value) {
         if (path.contains(".")) {
             String keyWord = getRealKey(map, path.split("\\.")[0]);
             Object subMap = map.get(keyWord);
             if (!(subMap instanceof Map)) {
                 subMap = new LinkedHashMap<>();
             }
-            map.put(keyWord, set((Map<String, Object>) subMap, path.substring(keyWord.length()+1), value));
+            map.put(keyWord, set((Map<Object, Object>) subMap, path.substring(keyWord.length()+1), value));
         } else {
             if (value == null) {
                 map.remove(getRealKey(map, path));
@@ -374,40 +373,6 @@ public abstract class ConfigurationFile {
     }
 
     /**
-     * Detects header of a file (first lines of file starting with #).
-     *
-     * @throws  IOException
-     *          if I/O operation fails
-     */
-    private void detectHeader() throws IOException {
-        header = new ArrayList<>();
-        for (String line : Files.readAllLines(file.toPath())) {
-            if (line.startsWith("#")) {
-                header.add(line);
-            } else {
-                break;
-            }
-        }
-    }
-
-    /**
-     * Inserts header back into file. This is required after calling {@link #save()}, because
-     * it destroys the header.
-     *
-     * @throws  IOException
-     *          if I/O operation fails
-     */
-    public void fixHeader() throws IOException {
-        if (header == null) return;
-        List<String> content = new ArrayList<>(header);
-        content.addAll(Files.readAllLines(file.toPath()));
-        Files.delete(file.toPath());
-        if (file.createNewFile()) {
-            Files.write(file.toPath(), content);
-        }
-    }
-
-    /**
      * Sets value to specified key if key does not exist.
      *
      * @param   key
@@ -433,5 +398,36 @@ public abstract class ConfigurationFile {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Renames an option from old path to new path. Returns {@code true} if option was renamed,
+     * {@code false} if the option was renamed previously already.
+     *
+     * @param   oldPath
+     *          Old path to the option
+     * @param   newPath
+     *          New path to the option
+     * @return  {@code true} if option was renamed successfully, {@code false} if not.
+     */
+    public boolean rename(@NotNull String oldPath, @NotNull String newPath) {
+        if (hasConfigOption(oldPath)) {
+            set(newPath, getObject(oldPath));
+            set(oldPath, null);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Returns configuration section with given path.
+     *
+     * @param   path
+     *          Path to get configuration section from
+     * @return  Configuration section from given path
+     */
+    @NotNull
+    public ConfigurationSection getConfigurationSection(@NotNull String path) {
+        return new ConfigurationSection(file.getName(), path, getMap(path));
     }
 }

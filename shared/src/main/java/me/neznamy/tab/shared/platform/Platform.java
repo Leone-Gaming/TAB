@@ -1,19 +1,16 @@
 package me.neznamy.tab.shared.platform;
 
 import me.neznamy.tab.shared.GroupManager;
-import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.chat.TabComponent;
-import me.neznamy.tab.shared.config.files.config.PerWorldPlayerListConfiguration;
+import me.neznamy.tab.shared.features.PerWorldPlayerListConfiguration;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
 import me.neznamy.tab.shared.features.types.TabFeature;
-import me.neznamy.tab.shared.hook.PremiumVanishHook;
 import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.util.ConcurrentModificationException;
 
 /**
  * An interface with methods that are called in universal code,
@@ -174,22 +171,34 @@ public interface Platform {
     TabList createTabList(@NotNull TabPlayer player);
 
     /**
-     * Returns {@code true} if the viewer can see the target, {@code false} otherwise.
-     * This includes all vanish, permission & plugin API checks.
+     * Returns {@code true} if server is able to use {@code NumberFormat} scoreboard feature (1.20.3+). Returns {@code false}
+     * if server is running below this version (backend) or server API does not support it yet.
      *
-     * @param   viewer
-     *          Player who is viewing
-     * @param   target
-     *          Player who is being viewed
-     * @return  {@code true} if can see, {@code false} if not.
+     * @return  {@code true} if server is able to use {@code NumberFormat} scoreboard feature, {@code false} if not
      */
-    default boolean canSee(@NotNull TabPlayer viewer, @NotNull TabPlayer target) {
-        try {
-            if (PremiumVanishHook.getInstance() != null && PremiumVanishHook.getInstance().canSee(viewer, target)) return true;
-        } catch (ConcurrentModificationException e) {
-            // PV error, try again
-            return canSee(viewer, target);
-        }
-        return !target.isVanished() || viewer.hasPermission(TabConstants.Permission.SEE_VANISHED);
-    }
+    boolean supportsNumberFormat();
+
+    /**
+     * Returns {@code true} if server is able to use {@code listOrder} field in tablist (1.21.2+). Returns {@code false}
+     * if server is running below this version (backend) or server API does not support it yet.
+     *
+     * @return  {@code true} if server is able to use {@code listOrder} tablist field, {@code false} if not
+     */
+    boolean supportsListOrder();
+
+    /**
+     * Returns {@code true} if server has a scoreboard implementation, {@code false} if not.
+     *
+     * @return   {@code true} if server has a scoreboard implementation, {@code false} if not
+     */
+    boolean supportsScoreboards();
+
+    /**
+     * Returns the command string used by this platform without "/"
+     * prefix, such as "tab" on backend and "btab" on BungeeCord.
+     *
+     * @return  command string on this platform without "/" prefix
+     */
+    @NotNull
+    String getCommand();
 }

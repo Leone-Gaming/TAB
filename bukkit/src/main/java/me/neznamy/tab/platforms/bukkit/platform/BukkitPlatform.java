@@ -6,34 +6,29 @@ import me.clip.placeholderapi.PlaceholderAPI;
 import me.neznamy.tab.platforms.bukkit.*;
 import me.neznamy.tab.platforms.bukkit.bossbar.BukkitBossBar;
 import me.neznamy.tab.platforms.bukkit.bossbar.ViaBossBar;
+import me.neznamy.tab.platforms.bukkit.features.BukkitTabExpansion;
+import me.neznamy.tab.platforms.bukkit.features.PerWorldPlayerList;
 import me.neznamy.tab.platforms.bukkit.header.HeaderFooter;
 import me.neznamy.tab.platforms.bukkit.hook.BukkitPremiumVanishHook;
 import me.neznamy.tab.platforms.bukkit.nms.BukkitReflection;
-import me.neznamy.tab.platforms.bukkit.nms.converter.ComponentConverter;
 import me.neznamy.tab.platforms.bukkit.nms.PingRetriever;
-import me.neznamy.tab.platforms.bukkit.nms.converter.ReflectionComponentConverter;
+import me.neznamy.tab.platforms.bukkit.nms.converter.ComponentConverter;
 import me.neznamy.tab.platforms.bukkit.scoreboard.ScoreboardLoader;
 import me.neznamy.tab.platforms.bukkit.tablist.TabListBase;
 import me.neznamy.tab.shared.GroupManager;
 import me.neznamy.tab.shared.ProtocolVersion;
+import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.StructuredComponent;
-import me.neznamy.tab.shared.chat.SimpleComponent;
-import me.neznamy.tab.shared.chat.TabComponent;
-import me.neznamy.tab.shared.config.files.config.PerWorldPlayerListConfiguration;
+import me.neznamy.tab.shared.backend.BackendPlatform;
+import me.neznamy.tab.shared.chat.*;
+import me.neznamy.tab.shared.features.PerWorldPlayerListConfiguration;
+import me.neznamy.tab.shared.features.PlaceholderManagerImpl;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.types.TabFeature;
-import me.neznamy.tab.platforms.bukkit.features.BukkitTabExpansion;
-import me.neznamy.tab.platforms.bukkit.features.PerWorldPlayerList;
-import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.backend.BackendPlatform;
-import me.neznamy.tab.shared.features.PlaceholderManagerImpl;
 import me.neznamy.tab.shared.hook.LuckPermsHook;
-import me.neznamy.tab.shared.hook.PremiumVanishHook;
-import me.neznamy.tab.shared.placeholders.types.PlayerPlaceholderImpl;
 import me.neznamy.tab.shared.placeholders.expansion.EmptyTabExpansion;
 import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
+import me.neznamy.tab.shared.placeholders.types.PlayerPlaceholderImpl;
 import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabList;
@@ -42,6 +37,8 @@ import me.neznamy.tab.shared.platform.impl.AdventureBossBar;
 import me.neznamy.tab.shared.platform.impl.DummyBossBar;
 import me.neznamy.tab.shared.util.PerformanceUtil;
 import me.neznamy.tab.shared.util.ReflectionUtils;
+import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.milkbowl.vault.chat.Chat;
 import net.milkbowl.vault.permission.Permission;
 import org.bstats.bukkit.Metrics;
@@ -56,7 +53,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.util.EnumSet;
 
 /**
  * Implementation of Platform interface for Bukkit platform
@@ -84,22 +80,12 @@ public class BukkitPlatform implements BackendPlatform {
     /** Detection for presence of Paper's MSPT getter */
     private final boolean paperMspt = ReflectionUtils.methodExists(Bukkit.class, "getAverageTickTime");
 
-    /** Flag tracking availability of direct NMS code for 1.20.5+ paper using mojang mappings with paperweight */
-    private final boolean enhancedDirectNMS = ReflectionUtils.classExists("io.papermc.paper.util.TickThread") &&
-            EnumSet.of(
-                    ProtocolVersion.V1_20_5,
-                    ProtocolVersion.V1_20_6,
-                    ProtocolVersion.V1_21,
-                    ProtocolVersion.V1_21_1
-            ).contains(serverVersion);
-
     /**
      * Constructs new instance with given plugin.
      *
      * @param   plugin
      *          Plugin
      */
-    @SneakyThrows
     public BukkitPlatform(@NotNull JavaPlugin plugin) {
         this.plugin = plugin;
         long time = System.currentTimeMillis();
@@ -110,22 +96,18 @@ public class BukkitPlatform implements BackendPlatform {
             //not spigot
         }
         if (Bukkit.getPluginManager().isPluginEnabled("PremiumVanish")) {
-            PremiumVanishHook.setInstance(new BukkitPremiumVanishHook());
+            new BukkitPremiumVanishHook().register();
         }
         PingRetriever.tryLoad();
-        if (enhancedDirectNMS) {
-            Class.forName("me.neznamy.tab.platforms.paper.PaperLoader").getMethod("load").invoke(null);
-        } else {
-            ReflectionComponentConverter.tryLoad();
-            ScoreboardLoader.findInstance();
-            TabListBase.findInstance();
-            if (BukkitReflection.getMinorVersion() >= 8) {
-                HeaderFooter.findInstance();
-                BukkitPipelineInjector.tryLoad();
-            }
+        ComponentConverter.tryLoad(serverVersion);
+        ScoreboardLoader.findInstance(serverVersion);
+        TabListBase.findInstance(serverVersion);
+        if (BukkitReflection.getMinorVersion() >= 8) {
+            HeaderFooter.findInstance();
+            BukkitPipelineInjector.tryLoad(serverVersion);
         }
         BukkitUtils.sendCompatibilityMessage();
-        Bukkit.getConsoleSender().sendMessage("[TAB] " + EnumChatFormat.GRAY + "Loaded NMS hook in " + (System.currentTimeMillis()-time) + "ms");
+        Bukkit.getConsoleSender().sendMessage("[TAB] §7Loaded NMS hook in " + (System.currentTimeMillis()-time) + "ms");
     }
 
     @Override
@@ -224,12 +206,12 @@ public class BukkitPlatform implements BackendPlatform {
 
     @Override
     public void logInfo(@NotNull TabComponent message) {
-        Bukkit.getConsoleSender().sendMessage("[TAB] " + toBukkitFormat(message, true));
+        Bukkit.getConsoleSender().sendMessage("[TAB] " + toBukkitFormat(message));
     }
 
     @Override
     public void logWarn(@NotNull TabComponent message) {
-        Bukkit.getConsoleSender().sendMessage(EnumChatFormat.RED + "[TAB] [WARN] " + toBukkitFormat(message, true));
+        Bukkit.getConsoleSender().sendMessage("§c[TAB] [WARN] " + toBukkitFormat(message));
     }
 
     @Override
@@ -245,7 +227,7 @@ public class BukkitPlatform implements BackendPlatform {
 
     @Override
     public void registerCommand() {
-        PluginCommand command = Bukkit.getPluginCommand(TabConstants.COMMAND_BACKEND);
+        PluginCommand command = Bukkit.getPluginCommand(getCommand());
         if (command != null) {
             BukkitTabCommand cmd = new BukkitTabCommand();
             command.setExecutor(cmd);
@@ -274,7 +256,7 @@ public class BukkitPlatform implements BackendPlatform {
     @NotNull
     public Object convertComponent(@NotNull TabComponent component, boolean modern) {
         if (ComponentConverter.INSTANCE != null) {
-            return ComponentConverter.INSTANCE.convert(component, modern);
+            return ComponentConverter.INSTANCE.convert(component);
         } else {
             return component;
         }
@@ -282,6 +264,7 @@ public class BukkitPlatform implements BackendPlatform {
 
     @Override
     @NotNull
+    @SneakyThrows
     public Scoreboard createScoreboard(@NotNull TabPlayer player) {
         return ScoreboardLoader.getInstance().apply((BukkitTabPlayer) player);
     }
@@ -289,7 +272,8 @@ public class BukkitPlatform implements BackendPlatform {
     @Override
     @NotNull
     public BossBar createBossBar(@NotNull TabPlayer player) {
-        if (AdventureBossBar.isAvailable()) return new AdventureBossBar(player);
+        //noinspection ConstantValue
+        if (AdventureBossBar.isAvailable() && Audience.class.isAssignableFrom(Player.class)) return new AdventureBossBar(player);
 
         // 1.9+ server, handle using API, potential 1.8 players are handled by ViaVersion
         if (BukkitReflection.getMinorVersion() >= 9) return new BukkitBossBar((BukkitTabPlayer) player);
@@ -303,8 +287,24 @@ public class BukkitPlatform implements BackendPlatform {
 
     @Override
     @NotNull
+    @SneakyThrows
     public TabList createTabList(@NotNull TabPlayer player) {
         return TabListBase.getInstance().apply((BukkitTabPlayer) player);
+    }
+
+    @Override
+    public boolean supportsNumberFormat() {
+        return serverVersion.getNetworkId() >= ProtocolVersion.V1_20_3.getNetworkId();
+    }
+
+    @Override
+    public boolean supportsListOrder() {
+        return serverVersion.getNetworkId() >= ProtocolVersion.V1_21_2.getNetworkId();
+    }
+
+    @Override
+    public boolean supportsScoreboards() {
+        return true;
     }
 
     @Override
@@ -351,43 +351,39 @@ public class BukkitPlatform implements BackendPlatform {
         Bukkit.getScheduler().runTask(plugin, task);
     }
 
-    @Override
-    public boolean canSee(@NotNull TabPlayer viewer, @NotNull TabPlayer target) {
-        if (BackendPlatform.super.canSee(viewer, target)) return true;
-        return ((BukkitTabPlayer)viewer).getPlayer().canSee(((BukkitTabPlayer)target).getPlayer());
-    }
-
     /**
-     * Converts component to legacy string using bukkit RGB format if supported by both server and client.
+     * Converts component to string using bukkit RGB format if supported by the server.
      * If not, closest legacy color is used instead.
      *
      * @param   component
      *          Component to convert
-     * @param   rgbClient
-     *          Whether client accepts RGB colors or not.
      * @return  Converted string using bukkit color format
      */
     @NotNull
-    public String toBukkitFormat(@NotNull TabComponent component, boolean rgbClient) {
-        if (component instanceof SimpleComponent) return component.toLegacyText();
-        StructuredComponent iComponent = (StructuredComponent) component;
-        StringBuilder sb = new StringBuilder();
-        if (iComponent.getModifier().getColor() != null) {
-            if (serverVersion.supportsRGB() && rgbClient) {
-                String hexCode = iComponent.getModifier().getColor().getHexCode();
-                char c = EnumChatFormat.COLOR_CHAR;
-                sb.append(c).append("x").append(c).append(hexCode.charAt(0)).append(c).append(hexCode.charAt(1))
-                        .append(c).append(hexCode.charAt(2)).append(c).append(hexCode.charAt(3))
-                        .append(c).append(hexCode.charAt(4)).append(c).append(hexCode.charAt(5));
-            } else {
-                sb.append(iComponent.getModifier().getColor().getLegacyColor());
+    public String toBukkitFormat(@NotNull TabComponent component) {
+        if (component instanceof SimpleComponent) {
+            return ((SimpleComponent) component).getText();
+        }
+        if (component instanceof StructuredComponent) {
+            StructuredComponent iComponent = (StructuredComponent) component;
+            StringBuilder sb = new StringBuilder();
+            if (iComponent.getModifier().getColor() != null) {
+                if (serverVersion.supportsRGB()) {
+                    String hexCode = iComponent.getModifier().getColor().getHexCode();
+                    sb.append('§').append("x").append('§').append(hexCode.charAt(0)).append('§').append(hexCode.charAt(1))
+                            .append('§').append(hexCode.charAt(2)).append('§').append(hexCode.charAt(3))
+                            .append('§').append(hexCode.charAt(4)).append('§').append(hexCode.charAt(5));
+                } else {
+                    sb.append(iComponent.getModifier().getColor().getLegacyColor().getFormat());
+                }
             }
+            sb.append(iComponent.getModifier().getMagicCodes());
+            sb.append(iComponent.getText());
+            for (StructuredComponent extra : iComponent.getExtra()) {
+                sb.append(toBukkitFormat(extra));
+            }
+            return sb.toString();
         }
-        sb.append(iComponent.getModifier().getMagicCodes());
-        sb.append(iComponent.getText());
-        for (StructuredComponent extra : iComponent.getExtra()) {
-            sb.append(toBukkitFormat(extra, rgbClient));
-        }
-        return sb.toString();
+        return LegacyComponentSerializer.builder().hexColors().useUnusualXRepeatedCharacterHexFormat().build().serialize(((AdventureComponent)component).getComponent());
     }
 }

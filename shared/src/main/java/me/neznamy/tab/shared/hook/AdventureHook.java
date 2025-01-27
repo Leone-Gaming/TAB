@@ -1,17 +1,15 @@
 package me.neznamy.tab.shared.hook;
 
-import me.neznamy.tab.shared.chat.ChatModifier;
-import me.neznamy.tab.shared.chat.StructuredComponent;
-import me.neznamy.tab.shared.chat.SimpleComponent;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.tab.shared.chat.*;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
 
 /**
  * Class for Adventure component conversion.
@@ -46,20 +44,19 @@ public class AdventureHook {
      *
      * @param   component
      *          Component to convert
-     * @param   modern
-     *          Whether client supports RGB or not
      * @return  Adventure component from this component.
      */
     @NotNull
-    public static Component toAdventureComponent(@NotNull TabComponent component, boolean modern) {
+    public static Component toAdventureComponent(@NotNull TabComponent component) {
+        if (component instanceof AdventureComponent) return ((AdventureComponent) component).getComponent();
         if (component instanceof SimpleComponent) return Component.text(((SimpleComponent) component).getText());
         StructuredComponent iComponent = (StructuredComponent) component;
         ChatModifier modifier = iComponent.getModifier();
 
         Component adventureComponent = Component.text(
                 iComponent.getText(),
-                convertColor(modifier.getColor(), modern),
-                decorations[modifier.getMagicCodeBitMask()]
+                modifier.getColor() == null ? null : TextColor.color(modifier.getColor().getRgb()),
+                decorations[modifier.getMagicCodeBitMask()] // TODO make sure null vs false behave properly
         );
 
         if (modifier.getFont() != null) {
@@ -68,29 +65,10 @@ public class AdventureHook {
         if (!iComponent.getExtra().isEmpty()) {
             List<Component> list = new ArrayList<>();
             for (StructuredComponent extra : iComponent.getExtra()) {
-                list.add(toAdventureComponent(extra, modern));
+                list.add(toAdventureComponent(extra));
             }
             adventureComponent = adventureComponent.children(list);
         }
         return adventureComponent;
-    }
-
-    /**
-     * Converts TAB color into adventure color.
-     *
-     * @param   color
-     *          Color to convert
-     * @param   rgbSupport
-     *          Whether RGB is supported or not
-     * @return  Converted color
-     */
-    @Nullable
-    private static TextColor convertColor(@Nullable me.neznamy.tab.shared.chat.TextColor color, boolean rgbSupport) {
-        if (color == null) return null;
-        if (rgbSupport) {
-            return TextColor.color(color.getRgb());
-        } else {
-            return TextColor.color(color.getLegacyColor().getRgb());
-        }
     }
 }

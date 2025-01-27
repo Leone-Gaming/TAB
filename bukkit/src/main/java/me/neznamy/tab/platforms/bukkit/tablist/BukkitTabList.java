@@ -58,13 +58,18 @@ public class BukkitTabList extends TabListBase<String> {
     }
 
     @Override
+    public void updateHat(@NonNull UUID entry, boolean showHat) {
+        // Shrug
+    }
+
+    @Override
     public void addEntry(@NonNull UUID id, @NonNull String name, @Nullable Skin skin, boolean listed, int latency,
-                         int gameMode, @Nullable String displayName, int listOrder) {
+                         int gameMode, @Nullable String displayName, int listOrder, boolean showHat) {
         // Shrug
     }
 
     @Override
     public String toComponent(@NonNull TabComponent component) {
-        return player.getPlatform().toBukkitFormat(component, true);
+        return player.getPlatform().toBukkitFormat(component);
     }
 }

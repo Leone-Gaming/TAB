@@ -5,14 +5,15 @@ import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.chat.rgb.RGBUtils;
 import me.neznamy.tab.shared.hook.AdventureHook;
-import me.neznamy.tab.shared.util.FunctionWithException;
+import me.neznamy.tab.shared.util.function.FunctionWithException;
+import me.neznamy.tab.shared.util.function.TriFunction;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,6 +21,35 @@ import java.util.regex.Pattern;
  * Base class for managing minecraft components.
  */
 public abstract class TabComponent {
+
+    /** Formatter to convert gradient into TAB's #RRGGBB spam */
+    private static final TriFunction<TextColor, String, TextColor, String> TABGradientFormatter = (start, text, end) -> {
+        //lazy support for magic codes in gradients
+        String magicCodes = EnumChatFormat.getLastColors(text);
+        String deColorized = text.substring(magicCodes.length());
+        StringBuilder sb = new StringBuilder();
+        int length = deColorized.length();
+        if (length == 1) {
+            sb.append("#");
+            sb.append(start.getHexCode());
+            sb.append(magicCodes);
+            sb.append(deColorized);
+            return sb.toString();
+        }
+        for (int i=0; i<length; i++) {
+            int red = (int) (start.getRed() + (float)(end.getRed() - start.getRed())/(length-1)*i);
+            int green = (int) (start.getGreen() + (float)(end.getGreen() - start.getGreen())/(length-1)*i);
+            int blue = (int) (start.getBlue() + (float)(end.getBlue() - start.getBlue())/(length-1)*i);
+            sb.append("#");
+            sb.append(new TextColor(red, green, blue).getHexCode());
+            sb.append(magicCodes);
+            sb.append(deColorized.charAt(i));
+        }
+        return sb.toString();
+    };
+
+    /** Formatter to convert RGB code to use TAB's #RRGGBB */
+    private static final Function<TextColor, String> TABRGBFormatter = color -> "#" + color.getHexCode();
 
     /** Pattern for detecting fonts */
     private static final Pattern fontPattern = Pattern.compile("<font:(.*?)>(.*?)</font>");
@@ -30,26 +60,21 @@ public abstract class TabComponent {
     @Nullable
     private Object convertedLegacy;
 
-    /** Adventure component from this component for 1.16+ players */
+    /** Adventure component from this component */
     @Nullable
-    private Component adventureModern;
-
-    /** Adventure component from this component for 1.15- players */
-    @Nullable
-    private Component adventureLegacy;
-
-    @Nullable
-    private String jsonModern;
-
-    @Nullable
-    private String jsonLegacy;
+    private Component adventureComponent;
 
     @Nullable
     private Object fixedFormat;
 
+    /** TextHolder object for Velocity */
+    @Nullable
+    private Object textHolder;
+
     /**
-     * Last color of this component. Used to determine team color based on last color of prefix.
-     * Saves as TextColor instead of EnumChatFormat to have things ready if Mojang adds RGB support to team color.
+     * Last color of this component.
+     * Used to determine team color based on the last color of prefix.
+     * Saved as TextColor instead of EnumChatFormat to have things ready if Mojang adds RGB support to team color.
      */
     @Nullable
     private TextColor lastColor;
@@ -76,39 +101,27 @@ public abstract class TabComponent {
     }
 
     /**
-     * Converts this component to adventure component.
+     * Converts this component to platform's component.
      *
-     * @param   clientVersion
-     *          Client version
      * @return  Converted component
+     * @param   <T>
+     *          Platform's component class
      */
     @NotNull
-    public Component toAdventure(@NotNull ProtocolVersion clientVersion) {
-        if (clientVersion.supportsRGB()) {
-            if (adventureModern == null) adventureModern = AdventureHook.toAdventureComponent(this, true);
-            return adventureModern;
-        } else {
-            if (adventureLegacy == null) adventureLegacy = AdventureHook.toAdventureComponent(this, false);
-            return adventureLegacy;
-        }
+    @SuppressWarnings("unchecked")
+    public <T> T convert() {
+        if (convertedModern == null) convertedModern = TAB.getInstance().getPlatform().convertComponent(this, true);
+        return (T) convertedModern;
     }
 
     /**
-     * Serializes this component to string using Adventure API.
-     *
-     * @param   clientVersion
-     *          Client version to serialize for
-     * @return  Serialized json
+     * Converts this component to an Adventure component.
+     * @return  Converted component
      */
     @NotNull
-    public String serialize(@NotNull ProtocolVersion clientVersion) {
-        if (clientVersion.supportsRGB()) {
-            if (jsonModern == null) jsonModern = GsonComponentSerializer.gson().serialize(toAdventure(clientVersion));
-            return jsonModern;
-        } else {
-            if (jsonLegacy == null) jsonLegacy = GsonComponentSerializer.gson().serialize(toAdventure(clientVersion));
-            return jsonLegacy;
-        }
+    public Component toAdventure() {
+        if (adventureComponent == null) adventureComponent = AdventureHook.toAdventureComponent(this);
+        return adventureComponent;
     }
 
     /**
@@ -125,19 +138,38 @@ public abstract class TabComponent {
      */
     @SuppressWarnings("unchecked")
     @SneakyThrows
-    public <F, C> F toFixedFormat(FunctionWithException<C, F> createFunction) {
-        if (fixedFormat == null) fixedFormat = createFunction.apply(convert(ProtocolVersion.LATEST_KNOWN_VERSION)); // Numbers formats are 1.20.3+, which is above 1.16
+    public <F, C> F toFixedFormat(@NotNull FunctionWithException<C, F> createFunction) {
+        if (fixedFormat == null) fixedFormat = createFunction.apply(convert());
         return (F) fixedFormat;
     }
 
     /**
-     * Returns last color of this component. This value is cached.
+     * Creates a text holder object using provided function if it does not exist and returns it.
+     *
+     * @param   convertFunction
+     *          Function for converting adventure Component to TextHolder
+     * @return  Converted TextHolder
+     * @param   <T>
+     *          TextHolder type
+     */
+    @SuppressWarnings("unchecked")
+    @NotNull
+    public <T> T toTextHolder(@NotNull Function<TabComponent, T> convertFunction) {
+        if (textHolder == null) textHolder = convertFunction.apply(this);
+        return (T) textHolder;
+    }
+
+    /**
+     * Returns last color of this component. This value is cached. If no color is used, WHITE color is returned.
      *
      * @return  Last color of this component
      */
     @NotNull
     public TextColor getLastColor() {
-        if (lastColor == null) lastColor = fetchLastColor();
+        if (lastColor == null) {
+            lastColor = fetchLastColor();
+            if (lastColor == null) lastColor = TextColor.legacy(EnumChatFormat.WHITE);
+        }
         return lastColor;
     }
 
@@ -150,12 +182,13 @@ public abstract class TabComponent {
     public abstract String toLegacyText();
 
     /**
-     * Converts this component into a string. RGB colors are represented as #RRGGBB.
+     * Computes and returns the last used color code in this component.
+     * If no color is present, {@code null} is returned.
      *
-     * @return  String version of this component
+     * @return  Last color of this component, {@code null} if no colors are used
      */
-    @NotNull
-    public abstract String toFlatText();
+    @Nullable
+    protected abstract TextColor fetchLastColor();
 
     /**
      * Converts this component into a string that only consists of text without any formatting.
@@ -163,15 +196,13 @@ public abstract class TabComponent {
      * @return  String containing text of the component and extras
      */
     @NotNull
-    public abstract String toRawText();
-
-    /**
-     * Returns last color of this component.
-     *
-     * @return  Last color of this component
-     */
-    @NotNull
-    protected abstract TextColor fetchLastColor();
+    public String toRawText() {
+        String text = toLegacyText();
+        for (EnumChatFormat format : EnumChatFormat.VALUES) {
+            if (text.contains(format.toString())) text = text.replace(format.toString(), "");
+        }
+        return text;
+    }
 
     /**
      * Returns organized component from colored text
@@ -213,14 +244,14 @@ public abstract class TabComponent {
 
     @NotNull
     private static List<StructuredComponent> toComponentArray(@NotNull String originalText, @Nullable String font) {
-        String text = RGBUtils.getInstance().applyFormats(EnumChatFormat.color(originalText));
+        String text = RGBUtils.getInstance().applyFormats(EnumChatFormat.color(originalText), TABGradientFormatter, TABRGBFormatter);
         List<StructuredComponent> components = new ArrayList<>();
         StringBuilder builder = new StringBuilder();
         StructuredComponent component = new StructuredComponent();
         component.getModifier().setFont(font);
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
-            if (c == EnumChatFormat.COLOR_CHAR) {
+            if (c == '§') {
                 i++;
                 if (i >= text.length()) {
                     break;
@@ -270,15 +301,8 @@ public abstract class TabComponent {
             } else if (c == '#' && text.length() > i+6) {
                 String hex = text.substring(i+1, i+7);
                 if (isHexCode(hex)) {
-                    TextColor color;
-                    EnumChatFormat code = text.length() - i >= 9 ? EnumChatFormat.getByChar(text.charAt(i+8)) : null;
-                    if (code != null && text.charAt(i+7) == '|') {
-                        color = new TextColor(hex, code);
-                        i += 8;
-                    } else {
-                        color = new TextColor(hex);
-                        i += 6;
-                    }
+                    TextColor color = new TextColor(hex);
+                    i += 6;
                     if (builder.length() > 0) {
                         component.setText(builder.toString());
                         components.add(component);

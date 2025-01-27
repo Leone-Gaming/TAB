@@ -19,19 +19,16 @@ public class TabConstants {
 
     public static final String NO_GROUP = "NONE";
     public static final String DEFAULT_GROUP = "_DEFAULT_";
-    public static final String PLUGIN_MESSAGE_CHANNEL_NAME = "tab:bridge-5";
+    public static final String PLUGIN_MESSAGE_CHANNEL_NAME = "tab:bridge-6";
     public static final String REDIS_CHANNEL_NAME = PLUGIN_NAME;
     public static final String PIPELINE_HANDLER_NAME = PLUGIN_NAME;
-
-    public static final String COMMAND_BACKEND = "tab";
-    public static final String COMMAND_PROXY = "btab";
 
     public static final int BSTATS_PLUGIN_ID_BUKKIT = 5304;
     public static final int BSTATS_PLUGIN_ID_BUNGEE = 10535;
     public static final int BSTATS_PLUGIN_ID_SPONGE = 17732;
     public static final int BSTATS_PLUGIN_ID_VELOCITY = 10533;
 
-    public static final int MAX_LOG_SIZE = 1000000;
+    public static final int MAX_LOG_SIZE = 16 * 1024 * 1024;
 
     /**
      * Feature sub-category explaining why / when a certain feature

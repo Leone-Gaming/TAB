@@ -6,12 +6,13 @@ import lombok.SneakyThrows;
 import me.neznamy.tab.platforms.bukkit.nms.BukkitReflection;
 import me.neznamy.tab.shared.Limitations;
 import me.neznamy.tab.shared.ProtocolVersion;
+import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.platform.decorators.SafeScoreboard;
 import me.neznamy.tab.shared.platform.decorators.SafeScoreboard.Team;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.Scoreboard.TeamAction;
 import me.neznamy.tab.shared.platform.TabPlayer;
-import me.neznamy.tab.shared.util.BiConsumerWithException;
+import me.neznamy.tab.shared.util.function.BiConsumerWithException;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import org.jetbrains.annotations.NotNull;
 
@@ -28,11 +29,11 @@ import java.util.List;
 @SuppressWarnings("unchecked")
 public class TeamPacketData {
 
-    /** First version with modern team data using components */
-    private final int MODERN_TEAM_DATA_VERSION = 13;
+    /** Flag tracking if server uses modern team data using components */
+    private final boolean MODERN_TEAM_DATA_VERSION = BukkitReflection.getMinorVersion() >= 13;
 
-    /** First version with static constructor-like methods */
-    private final int STATIC_CONSTRUCTOR_VERSION = 17;
+    /** Flag tracking if server uses static constructor-like methods */
+    private final boolean STATIC_CONSTRUCTOR_VERSION = BukkitReflection.getMinorVersion() >= 17;
 
     private final Object emptyScoreboard;
     @Getter private final Class<?> TeamPacketClass;
@@ -43,7 +44,6 @@ public class TeamPacketData {
     private final Field TeamPacket_NAME;
     private final Field TeamPacket_ACTION;
     private final Field TeamPacket_PLAYERS;
-    private final Method ScoreboardTeam_getPlayerNameSet;
     private final Method ScoreboardTeam_setPrefix;
     private final Method ScoreboardTeam_setSuffix;
     private Method ScoreboardTeam_setColor;
@@ -82,7 +82,6 @@ public class TeamPacketData {
             TeamPacket_ACTION = intFields.get(0);
         }
         TeamPacket_PLAYERS = ReflectionUtils.getOnlyField(TeamPacketClass, Collection.class);
-        ScoreboardTeam_getPlayerNameSet = ReflectionUtils.getOnlyMethod(scoreboardTeam, Collection.class);
         chatFormats = (Enum<?>[]) enumChatFormatClass.getMethod("values").invoke(null);
         ScoreboardTeam_setAllowFriendlyFire = ReflectionUtils.getMethod(
                 scoreboardTeam,
@@ -96,7 +95,7 @@ public class TeamPacketData {
         );
         if (minorVersion >= 8) loadVisibility(scoreboardTeam);
         if (minorVersion >= 9) loadCollision(scoreboardTeam);
-        if (minorVersion >= MODERN_TEAM_DATA_VERSION) {
+        if (MODERN_TEAM_DATA_VERSION) {
             Class<?> Component = BukkitReflection.getClass("network.chat.Component", "network.chat.IChatBaseComponent", "IChatBaseComponent");
             ScoreboardTeam_setColor = ReflectionUtils.getOnlyMethod(scoreboardTeam, void.class, enumChatFormatClass);
             ScoreboardTeam_setPrefix = ReflectionUtils.getMethod(
@@ -121,7 +120,7 @@ public class TeamPacketData {
                     String.class
             );
         }
-        if (minorVersion >= STATIC_CONSTRUCTOR_VERSION) {
+        if (STATIC_CONSTRUCTOR_VERSION) {
             TeamPacketConstructor_of = ReflectionUtils.getOnlyMethod(TeamPacketClass, TeamPacketClass, scoreboardTeam);
             TeamPacketConstructor_ofBoolean = ReflectionUtils.getOnlyMethod(TeamPacketClass, TeamPacketClass, scoreboardTeam, boolean.class);
         } else {
@@ -167,12 +166,14 @@ public class TeamPacketData {
     @SneakyThrows
     public Object registerTeam(@NonNull Team team, @NotNull ProtocolVersion clientVersion) {
         updateTeamData(team, clientVersion);
-        ((Collection<String>) ScoreboardTeam_getPlayerNameSet.invoke(team.getPlatformTeam())).addAll(team.getPlayers());
-        if (BukkitReflection.getMinorVersion() >= STATIC_CONSTRUCTOR_VERSION) {
-            return TeamPacketConstructor_ofBoolean.invoke(null, team.getPlatformTeam(), true);
+        Object packet;
+        if (STATIC_CONSTRUCTOR_VERSION) {
+            packet = TeamPacketConstructor_ofBoolean.invoke(null, team.getPlatformTeam(), true);
         } else {
-            return newTeamPacket.newInstance(team.getPlatformTeam(), TeamAction.CREATE);
+            packet = newTeamPacket.newInstance(team.getPlatformTeam(), TeamAction.CREATE);
         }
+        TeamPacket_PLAYERS.set(packet, team.getPlayers());
+        return packet;
     }
 
     /**
@@ -184,7 +185,7 @@ public class TeamPacketData {
      */
     @SneakyThrows
     public Object unregisterTeam(@NonNull Team team) {
-        if (BukkitReflection.getMinorVersion() >= STATIC_CONSTRUCTOR_VERSION) {
+        if (STATIC_CONSTRUCTOR_VERSION) {
             return TeamPacketConstructor_of.invoke(null, team.getPlatformTeam());
         } else {
             return newTeamPacket.newInstance(team.getPlatformTeam(), TeamAction.REMOVE);
@@ -203,7 +204,7 @@ public class TeamPacketData {
     @SneakyThrows
     public Object updateTeam(@NonNull Team team, @NotNull ProtocolVersion clientVersion) {
         updateTeamData(team, clientVersion);
-        if (BukkitReflection.getMinorVersion() >= STATIC_CONSTRUCTOR_VERSION) {
+        if (STATIC_CONSTRUCTOR_VERSION) {
             return TeamPacketConstructor_ofBoolean.invoke(null, team.getPlatformTeam(), false);
         } else {
             return newTeamPacket.newInstance(team.getPlatformTeam(), TeamAction.UPDATE);
@@ -223,14 +224,14 @@ public class TeamPacketData {
         Object nmsTeam = team.getPlatformTeam();
         ScoreboardTeam_setAllowFriendlyFire.invoke(nmsTeam, (team.getOptions() & 0x1) > 0);
         ScoreboardTeam_setCanSeeFriendlyInvisibles.invoke(nmsTeam, (team.getOptions() & 0x2) > 0);
-        if (BukkitReflection.getMinorVersion() >= MODERN_TEAM_DATA_VERSION) {
-            ScoreboardTeam_setPrefix.invoke(nmsTeam, (Object) team.getPrefix().convert(clientVersion));
-            ScoreboardTeam_setSuffix.invoke(nmsTeam, (Object) team.getSuffix().convert(clientVersion));
-            ScoreboardTeam_setColor.invoke(nmsTeam, chatFormats[team.getColor().ordinal()]);
+        if (MODERN_TEAM_DATA_VERSION) {
+            ScoreboardTeam_setPrefix.invoke(nmsTeam, (Object) team.getPrefix().convert());
+            ScoreboardTeam_setSuffix.invoke(nmsTeam, (Object) team.getSuffix().convert());
+            ScoreboardTeam_setColor.invoke(nmsTeam, chatFormats[team.getColor().getLegacyColor().ordinal()]);
         } else {
             String prefix = team.getPrefix().toLegacyText();
             String suffix = team.getSuffix().toLegacyText();
-            if (clientVersion.getMinorVersion() < 13) {
+            if (clientVersion.getMinorVersion() < 13 || TAB.getInstance().getConfiguration().getConfig().isPacketEventsCompensation()) {
                 prefix = SafeScoreboard.cutTo(prefix, Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13);
                 suffix = SafeScoreboard.cutTo(suffix, Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13);
             }

@@ -1,11 +1,12 @@
 import org.spongepowered.gradle.plugin.config.PluginLoaders
 
 plugins {
-    id("org.spongepowered.gradle.plugin") version "2.0.2"
+    id("org.spongepowered.gradle.plugin") version "2.3.0"
 }
 
 repositories {
     // Gradle doesn't support combining settings and project repositories, so we have to re-declare all the settings repos we need
+    mavenCentral() // Couldn't compile Caffeine 2.9.2 from jitpack
     maven("https://jitpack.io") // YamlAssist
     maven("https://repo.opencollab.dev/maven-snapshots/")
     maven("https://repo.viaversion.com/")
@@ -13,7 +14,7 @@ repositories {
 
 dependencies {
     implementation(projects.shared)
-    implementation("org.bstats:bstats-sponge:3.0.1")
+    implementation("org.bstats:bstats-sponge:3.1.0")
 }
 
 sponge {

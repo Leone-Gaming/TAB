@@ -133,7 +133,14 @@ public class DebugCommand extends SubCommand {
      */
     private @NotNull String getGroup(@NotNull TabPlayer analyzed) {
         if (TAB.getInstance().getConfiguration().getConfig().isGroupsByPermissions()) {
-            return "&eHighest group permission: &8tab.group.&a" + analyzed.getGroup();
+            if (analyzed.getGroup().equals(TabConstants.NO_GROUP)) {
+                return "&cPlayer does not have tab.group.<name> permission for any of the listed groups";
+            }
+            String s = "&eHighest group permission: &8tab.group.&a" + analyzed.getGroup();
+            if (analyzed.hasPermission(TabConstants.Permission.TEST_PERMISSION)) {
+                s += " &c| This user appears to have all permissions. Are they OP? &r";
+            }
+            return s;
         }
         return "&ePrimary permission group: &a" + analyzed.getGroup();
     }
@@ -183,7 +190,7 @@ public class DebugCommand extends SubCommand {
         if (disabled) {
             sendMessage(sender, "&a" + property.getName() + ": &cDisabled for player with condition");
         } else {
-            String rawValue = EnumChatFormat.decolor(property.getCurrentRawValue());
+            String rawValue = property.getCurrentRawValue().replace('§', '&');
             String value = String.format((EnumChatFormat.color("&a%s: &e\"&r%s&r&e\" &7(Source: %s)")), property.getName(), rawValue, property.getSource());
             sendRawMessage(sender, value);
         }

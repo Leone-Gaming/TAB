@@ -11,22 +11,21 @@
     * [Announce command](#announce-command)
     * [Additional settings](#additional-settings)
 * [Limitations](#limitations)
-    * [on <1.9](#on--19)
 * [Additional info](#additional-info)
     * [Additional note 1 - Hiding bar itself](#additional-note-1---hiding-bar-itself)
     * [Additional note 2 - Not hiding on server switch](#additional-note-2---not-hiding-on-server-switch)
 * [API](#api)
-* [1.8 vs 1.9 bossbar](#18-vs-19-bossbar)
-    * [Background](#background)
-    * [Execution by plugins](#execution-by-plugins)
-    * [Execution by TAB](#execution-by-tab)
 * [Tips & Tricks](#tips--tricks)
     * [Tip 1 - Animated bossbar color](#tip-1---animated-bossbar-color)
     * [Tip 2 - Switching between bossbars with condition](#tip-2---switching-between-bossbars-with-condition)
 
 # About
 ![](https://images-ext-2.discordapp.net/external/0H5v5gcK12jm-O_kljlx-iYdJ1Q3wBsY_Dch7Jr_aAk/https/image.prntscr.com/image/x4VewIuiRwO-XLGTvDxfWw.png)  
-Bars with text on top of the screen originally designed to display health of ender dragon & wither, but plugins found another use for it. In 1.9 mojang added a packet dedicated to displaying text without requiring an entity and allowing customizable color and style as well.
+Bars with text on top of the screen originally designed to display the health of ender dragon & wither,
+but plugins found another use for it.
+In 1.9, mojang added a packet
+dedicated to displaying text without requiring an entity and allowing customizable color and style as well.
+TAB only supports this new functionality, and the feature does not support 1.8 and lower.
 
 This feature can be configured in **config.yml** under **bossbar** section.
 
@@ -44,14 +43,14 @@ bossbar:
 Every bossbar line has 4 properties:
 
 ### style
-Type of bossbar division. Only visible on 1.9+ clients.  
+Type of bossbar division.  
 You can choose from 5 styles: **PROGRESS**, **NOTCHED_6**, **NOTCHED_10**, **NOTCHED_12** and **NOTCHED_20**  
 ![](https://images-ext-1.discordapp.net/external/yMuJNksnulOd_ZtI3yGw6CaQhon-ewVHsqaMzT8RcGk/https/image.prntscr.com/image/FzWSvsalTW6YVRPPK3oa9g.png)  
 These were defined by mojang, no other options are available. Other plugins may be using different names, but it's the same result in the end.
 
 
 ### color
-Color of bossbar. Only visible on 1.9+ clients. Old clients will see it purple.  
+Color of bossbar.  
 You can choose from 7 colors: **BLUE**, **GREEN**, **PINK**, **PURPLE**, **RED**, **WHITE** and **YELLOW**  
 ![](https://images-ext-2.discordapp.net/external/MwNGvtNT0vspb_xiGUyx_WQNayvSmb8h0Sk4W7Vxfoc/https/image.prntscr.com/image/fM7kq5XIRCiTN5n-ffpNyA.png)  
 These were defined by mojang, no other options are available.
@@ -63,7 +62,8 @@ A number from 0 to 100. Accepts decimals.
 If you want to show the progress of a placeholder's value relative to a maximum one, you can use the [Math Expansion](https://github.com/PlaceholderAPI/PlaceholderAPI/wiki/Placeholders#math) from PlaceholderAPI and use a placeholder like this one: `%math_{placeholder_current_value}/{placeholder_max_value}*100%` or `%math_{placeholder_current_value}/<max_value>*100%` if your max value is fixed.
 
 Notes:  
-Replace the text in between the `{}` with the actual placeholder you want to use and `<max_value>` with a valid number (i.e. 20).  
+Replace the text in between the `{}` with the actual placeholder you want to use and `<max_value>` with a valid number
+(i.e., 20).  
 You cannot use the `%placeholder%` format inside the math placeholder.
 
 Example for showing a player's health: `%math_{player_health}/20*100%` or `%math_{player_health}/{player_max_health}*100%`
@@ -101,7 +101,10 @@ bossbar:
 `/tab bossbar announce <name> <time>`  
 `name` is name of bossbar defined in config.yml under **bossbar** section, `time` is length of display time in seconds.
 
-When using a bossbar announcement, you have a new placeholder available: `%countdown%` that shows remaining time of the announce in seconds. You can further use this placeholder in progress for example, using Math expansion from PlaceholderAPI, such as `%math_{tab_placeholder_countdown}/<total time>*100%`.
+When using a bossbar announcement, you have a new placeholder available:
+`%countdown%` that shows remaining time of the announcement in seconds.
+You can further use this placeholder in progress, for example,
+using Math expansion from PlaceholderAPI, such as `%math_{tab_placeholder_countdown}/<total time>*100%`.
 
 ## Additional settings
 | Option name | Default value | Description |
@@ -114,17 +117,12 @@ When using a bossbar announcement, you have a new placeholder available: `%count
 # Limitations
 * Does not support newlines. If you want to display more lines, you'll need to create multiple bossbars.
 * The bar itself cannot be removed from the server side. However, it can be removed with a resource pack.
-## on < 1.9
-* **Will not display at all if TAB is installed on bungeecord** (bungeecord is missing entity packets needed to make it work)
-* Doesn't offer color and style features.
-* Only one line can be displayed at a time.
-* You can see the fog if you don't disable particles in options.
-* Text length is limited to 64 characters on <1.7
-* May not be visible when looking at blocks
 
 # Additional info
 ## Additional note 1 - Hiding bar itself
-If you want to hide the bossbar itself and only show text, this is possible, but not from the plugin's side. You'll need to create a custom resource pack where the bar doesn't show up and only text does. Then, you need to force your players to get the resource pack.
+If you want to hide the bossbar itself and only show text, this is possible, but not from the plugin's side.
+You'll need to create a custom resource pack where the bar doesn't show up and only the text does.
+Then, you need to force your players to get the resource pack.
 
 ## Additional note 2 - Not hiding on server switch
 When under a BungeeCord network and having TAB installed on backend server and switching to another server, the bossbar will not hide. This is because BungeeCord makes it look like a world switch to the client. To avoid this, the only way is to install TAB on BungeeCord and disable bossbar on that server.
@@ -139,11 +137,11 @@ A boss bar is made up of a few things:
 * A title. This is the display message of the boss bar.
 * The progress from 0 to 100.
 * The color. This determines what color the boss bar will appear when it is shown to clients.
-* The style. This determines how many segments, if any, the boss bar will be split in to.
+* The style. This determines how many segments, if any, the boss bar will be split to.
 
 Let's start with methods in `BossBarManager`:
 * `BossBarManager#createBossBar(String, float, BarColor, BarStyle` - Creates new bossbar using direct values.
-* `BossBarManager#createBossBar(String, String, String, String` - Creates new bossbar. Accepts all of the previous as strings, to allow for placeholders, though the given placeholders must match the requirements (progress will be a number, color and style matching enum names).
+* `BossBarManager#createBossBar(String, String, String, String` - Creates new bossbar. Accepts all the previous parameters as strings, to allow for placeholders, though the given placeholders must match the requirements (progress will be a number, color and style matching enum names).
 * `BossBarManager#getBossBar(String)` - Returns bossbar by name defined in config.
 * `BossBarManager#toggleBossBar(TabPlayer, boolean)` - Toggles all bossbars for specified player. The boolean flags whether toggle message defined in messages.yml should be sent to the player or not.
 * `BossBarManager#hasBossBarVisible(TabPlayer)` - Returns `true` if player has bossbars visible, `false` if disabled using toggling.
@@ -172,21 +170,9 @@ Methods in `BossBar`:
 * `BossBar#containsPlayer(TabPlayer)` - Returns `true` if player can see this bossbar, `false` if not.
 * `BossBar#isAnnouncementBar()` - Returns `true` if this bossbar is defined as announcement bar in config, `false` if visible permanently.
 
-# 1.8 vs 1.9 bossbar
-The way of displaying information in bossbar is completely different on 1.8 and 1.9+. Here you can find out why.
-
-## Background
-Server owners have always been looking for ways to display information. Another way they discovered is by spawning a fake ender dragon / wither, making it invisible, giving it custom name and teleporting it near player. This way, however, has several flaws as you can see above. As of 1.9, mojang decided to add a packet purely for displaying text without requiring an entity. They also added options to set color and style of the bossbar.
-
-## Execution by plugins
-With introduction of 1.9 bossbar which is much easier to use, plugins have switched over to that method. However, this feature cannot be used for <1.9 clients as the feature did not exist back then. For this reason you can see some bossbar plugins saying "supports 1.9 and higher", as they don't want to mess with entities.
-
-## Execution by TAB
-TAB will attempt to display 1.9 bossbar whenever possible, entity otherwise. 1.9+ clients will always see 1.9 bossbar (even on a 1.8 server thanks to viaversion api). <1.9 clients will see an invisible entity. On bungeecord, however, <1.9 clients won't see anything as bungeecord did not implement entity packets required to make it work.
-
 # Tips & Tricks
 ## Tip 1 - Animated bossbar color
-You can animate color of a bossbar using [animations](https://github.com/NEZNAMY/TAB/wiki/Animations).  
+You can animate the color of a bossbar using [animations](https://github.com/NEZNAMY/TAB/wiki/Animations).  
 First, create an animation in **animations.yml**, such as
 ```
 BossColor:
@@ -208,7 +194,12 @@ This bossbar will change color every second between blue and yellow colors.
 You can do the same with progress, style and text as well.
 
 ## Tip 2 - Switching between bossbars with condition
-If you want the plugin to switch between bossbars based on a condition, first consider using condition for text itself (or some other property). If this is not an option (you want text, color, style and progress to be different, which would result in 4 conditions), create 2 bars and give them the same condition, except negate it. If your original condition uses `=`, make second condition use `!=`. For number comparisons, negate `<` using `>=` and so on.  
+If you want the plugin to switch between bossbars based on a condition, first consider using condition for text itself
+(or some other property).
+If this is not an option (you want text, color, style and progress to be different, which would result in 4 conditions),
+create 2 bars and give them the same condition, except, negate it.
+If your original condition uses `=`, make second condition use `!=`.
+For number comparisons, negate `<` using `>=` and so on.  
 **Example**:
 ```
   bars:

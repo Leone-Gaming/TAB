@@ -1,5 +1,31 @@
 package me.neznamy.tab.shared.features;
 
+import lombok.Getter;
+import lombok.NonNull;
+import me.neznamy.tab.api.placeholder.Placeholder;
+import me.neznamy.tab.api.placeholder.PlaceholderManager;
+import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.TabConstants;
+import me.neznamy.tab.shared.TabConstants.CpuUsageCategory;
+import me.neznamy.tab.shared.cpu.CpuManager;
+import me.neznamy.tab.shared.cpu.TimedCaughtTask;
+import me.neznamy.tab.shared.event.impl.TabPlaceholderRegisterEvent;
+import me.neznamy.tab.shared.features.types.CustomThreaded;
+import me.neznamy.tab.shared.features.types.JoinListener;
+import me.neznamy.tab.shared.features.types.Loadable;
+import me.neznamy.tab.shared.features.types.RefreshableFeature;
+import me.neznamy.tab.shared.placeholders.PlaceholderRefreshConfiguration;
+import me.neznamy.tab.shared.placeholders.PlaceholderRefreshTask;
+import me.neznamy.tab.shared.placeholders.expansion.EmptyTabExpansion;
+import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
+import me.neznamy.tab.shared.placeholders.types.PlayerPlaceholderImpl;
+import me.neznamy.tab.shared.placeholders.types.RelationalPlaceholderImpl;
+import me.neznamy.tab.shared.placeholders.types.ServerPlaceholderImpl;
+import me.neznamy.tab.shared.placeholders.types.TabPlaceholder;
+import me.neznamy.tab.shared.platform.TabPlayer;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
@@ -8,29 +34,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import lombok.Getter;
-import lombok.NonNull;
-import me.neznamy.tab.api.placeholder.Placeholder;
-import me.neznamy.tab.api.placeholder.PlaceholderManager;
-import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.TabConstants.CpuUsageCategory;
-import me.neznamy.tab.shared.config.files.config.PlaceholderRefreshConfiguration;
-import me.neznamy.tab.shared.cpu.CpuManager;
-import me.neznamy.tab.shared.cpu.TimedCaughtTask;
-import me.neznamy.tab.shared.placeholders.PlaceholderRefreshTask;
-import me.neznamy.tab.shared.placeholders.expansion.EmptyTabExpansion;
-import me.neznamy.tab.shared.platform.TabPlayer;
-import me.neznamy.tab.shared.event.impl.TabPlaceholderRegisterEvent;
-import me.neznamy.tab.shared.features.types.*;
-import me.neznamy.tab.shared.placeholders.types.PlayerPlaceholderImpl;
-import me.neznamy.tab.shared.placeholders.types.RelationalPlaceholderImpl;
-import me.neznamy.tab.shared.placeholders.types.ServerPlaceholderImpl;
-import me.neznamy.tab.shared.placeholders.types.TabPlaceholder;
-import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * Messy class for placeholder management
@@ -53,6 +56,10 @@ public class PlaceholderManagerImpl extends RefreshableFeature implements Placeh
 
     private final CpuManager cpu;
 
+    /** Placeholders which are refreshed on backend server */
+    @Getter
+    private final Map<String, Integer> bridgePlaceholders = new ConcurrentHashMap<>();
+
     /**
      * Constructs new instance.
      *
@@ -64,7 +71,7 @@ public class PlaceholderManagerImpl extends RefreshableFeature implements Placeh
     public PlaceholderManagerImpl(@NotNull CpuManager cpu, @NotNull PlaceholderRefreshConfiguration configuration) {
         this.cpu = cpu;
         this.configuration = configuration;
-        tabExpansion = TAB.getInstance().getConfiguration().getConfig().getPlaceholders().registerTabExpansion ?
+        tabExpansion = TAB.getInstance().getConfiguration().getConfig().getPlaceholders().isRegisterTabExpansion() ?
                 TAB.getInstance().getPlatform().createTabExpansion() : new EmptyTabExpansion();
     }
 
@@ -202,7 +209,7 @@ public class PlaceholderManagerImpl extends RefreshableFeature implements Placeh
      * @return  Configured refresh interval for placeholder
      */
     public int getRefreshInterval(@NotNull String identifier) {
-        return configuration.refreshIntervals.getOrDefault(identifier, configuration.defaultInterval);
+        return configuration.getRefreshIntervals().getOrDefault(identifier, configuration.getDefaultInterval());
     }
 
     /**
@@ -384,6 +391,7 @@ public class PlaceholderManagerImpl extends RefreshableFeature implements Placeh
     @Override
     public @NotNull ServerPlaceholderImpl registerServerPlaceholder(@NonNull String identifier, int refresh, @NonNull Supplier<String> supplier) {
         ensureActive();
+        bridgePlaceholders.remove(identifier);
         return registerPlaceholder(new ServerPlaceholderImpl(identifier, refresh, supplier));
     }
 
@@ -391,6 +399,7 @@ public class PlaceholderManagerImpl extends RefreshableFeature implements Placeh
     public @NotNull PlayerPlaceholderImpl registerPlayerPlaceholder(@NonNull String identifier, int refresh,
                                                                     @NonNull Function<me.neznamy.tab.api.TabPlayer, String> function) {
         ensureActive();
+        bridgePlaceholders.remove(identifier);
         return registerPlaceholder(new PlayerPlaceholderImpl(identifier, refresh, function));
     }
 
@@ -398,12 +407,30 @@ public class PlaceholderManagerImpl extends RefreshableFeature implements Placeh
     public @NotNull RelationalPlaceholderImpl registerRelationalPlaceholder(
             @NonNull String identifier, int refresh, @NonNull BiFunction<me.neznamy.tab.api.TabPlayer, me.neznamy.tab.api.TabPlayer, String> function) {
         ensureActive();
+        bridgePlaceholders.remove(identifier);
         return registerPlaceholder(new RelationalPlaceholderImpl(identifier, refresh, function));
+    }
+
+    @NotNull
+    public PlayerPlaceholderImpl registerBridgePlaceholder(@NonNull String identifier, int backendRefresh) {
+        ensureActive();
+        bridgePlaceholders.put(identifier, backendRefresh);
+        return registerPlaceholder(new PlayerPlaceholderImpl(identifier, -1, player -> null));
+    }
+
+    @NotNull
+    public RelationalPlaceholderImpl registerRelationalBridgePlaceholder(@NonNull String identifier, int backendRefresh) {
+        ensureActive();
+        bridgePlaceholders.put(identifier, backendRefresh);
+        return registerPlaceholder(new RelationalPlaceholderImpl(identifier, -1, (viewer, target) -> null));
     }
 
     @Override
     @NotNull
     public synchronized TabPlaceholder getPlaceholder(@NonNull String identifier) {
+        if (identifier.charAt(0) != '%' || identifier.charAt(identifier.length() - 1) != '%') {
+            throw new IllegalArgumentException("Placeholder identifier must start and end with %");
+        }
         TabPlaceholder p = (TabPlaceholder) registeredPlaceholders.get(identifier);
         if (p == null) {
             TabPlaceholderRegisterEvent event = new TabPlaceholderRegisterEvent(identifier);

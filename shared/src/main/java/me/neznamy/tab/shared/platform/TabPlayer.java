@@ -3,15 +3,20 @@ package me.neznamy.tab.shared.platform;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
+import me.neznamy.tab.api.integration.VanishIntegration;
 import me.neznamy.tab.api.placeholder.PlayerPlaceholder;
 import me.neznamy.tab.api.placeholder.RelationalPlaceholder;
 import me.neznamy.tab.shared.chat.SimpleComponent;
 import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.features.*;
+import me.neznamy.tab.shared.features.belowname.BelowNamePlayerData;
 import me.neznamy.tab.shared.features.bossbar.BossBarManagerImpl;
 import me.neznamy.tab.shared.features.globalplayerlist.GlobalPlayerList;
+import me.neznamy.tab.shared.features.header.HeaderFooter;
 import me.neznamy.tab.shared.features.layout.LayoutManagerImpl;
 import me.neznamy.tab.shared.features.nametags.NameTag;
+import me.neznamy.tab.shared.features.playerlist.PlayerList;
+import me.neznamy.tab.shared.features.playerlistobjective.YellowNumber;
 import me.neznamy.tab.shared.features.scoreboard.ScoreboardManagerImpl;
 import me.neznamy.tab.shared.features.sorting.Sorting;
 import me.neznamy.tab.shared.hook.FloodgateHook;
@@ -54,9 +59,11 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
      * World the player is currently in, {@code "N/A"} if TAB is
      * installed on proxy and bridge is not installed
      */
+    @Getter
     public String world;
 
     /** Server the player is currently in, {@code "N/A"} if TAB is installed on backend */
+    @Getter
     public String server;
 
     /** Player's permission group defined in permission plugin or with permission nodes */
@@ -68,9 +75,6 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
 
     /** Player's game type, {@code true} for Bedrock, {@code false} for Java */
     @Getter private final boolean bedrockPlayer;
-
-    /** Player's property map where key is unique identifier and value is property object */
-    private final ConcurrentHashMap<String, Property> properties = new ConcurrentHashMap<>();
 
     /** Player's game version */
     @Getter protected final ProtocolVersion version;
@@ -106,7 +110,7 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
     public final YellowNumber.PlayerData playerlistObjectiveData = new YellowNumber.PlayerData();
 
     /** Data for Belowname Objective */
-    public final BelowName.PlayerData belowNameData = new BelowName.PlayerData();
+    public final BelowNamePlayerData belowNameData = new BelowNamePlayerData();
 
     /** Data for tablist formatting */
     public final PlayerList.PlayerData tablistData = new PlayerList.PlayerData();
@@ -178,26 +182,6 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
     }
 
     /**
-     * Sets player's property with provided key to provided value. If it existed,
-     * the raw value is changed. If it did not exist, it is created.
-     *
-     * @param feature    Feature creating the property
-     * @param identifier Property's unique identifier
-     * @param rawValue   Raw value with raw placeholders
-     * @return {@code true} if property did not exist or existed with different raw value,
-     * {@code false} if property existed with the same raw value already.
-     */
-    public boolean setProperty(@Nullable RefreshableFeature feature, @NotNull String identifier, @NotNull String rawValue) {
-        Property p = getProperty(identifier);
-        if (p == null) {
-            properties.put(identifier, new Property(null, feature, this, rawValue, null));
-            return true;
-        } else {
-            return p.changeRawValue(rawValue, null);
-        }
-    }
-
-    /**
      * Marks the player as loaded and calls PlayerLoadEvent
      *
      * @param   join
@@ -262,17 +246,6 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
         } else {
             sendMessage(new SimpleComponent(message));
         }
-    }
-
-    /**
-     * Returns property with given name.
-     *
-     * @param   name
-     *          Name of the property
-     * @return  Property with given name
-     */
-    public Property getProperty(@NotNull String name) {
-        return properties.get(name);
     }
 
     @Override
@@ -345,6 +318,26 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
      */
     public void markOffline() {
         online = false;
+    }
+
+    /**
+     * Returns {@code true} if player can see the target, {@code false} otherwise.
+     * This includes all vanish, permission & plugin API checks.
+     *
+     * @param   target
+     *          Player who is being viewed
+     * @return  {@code true} if can see, {@code false} if not.
+     */
+    public boolean canSee(@NotNull TabPlayer target) {
+        if (!VanishIntegration.getHandlers().isEmpty()) {
+            try {
+                return VanishIntegration.getHandlers().stream().allMatch(integration -> integration.canSee(this, target));
+            } catch (ConcurrentModificationException e) {
+                // PV error, try again
+                return canSee(target);
+            }
+        }
+        return !target.isVanished() || hasPermission(TabConstants.Permission.SEE_VANISHED);
     }
 
     /**

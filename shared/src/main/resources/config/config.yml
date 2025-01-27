@@ -61,10 +61,10 @@ playerlist-objective:
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Belowname
 belowname-objective:
   enabled: false
-  number: "%health%"
-  text: "&cHealth"
-  fancy-display-players: "&c%health%"
-  fancy-display-default: "NPC"
+  value: "%health%"
+  title: "&cHealth"
+  fancy-value: "&c%health%"
+  fancy-value-default: "NPC"
   disable-condition: '%world%=disabledworld'
 
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Spectator-fix
@@ -130,7 +130,7 @@ scoreboard:
 layout:
   enabled: false
   direction: COLUMNS
-  default-skin: mineskin:1753261242
+  default-skin: mineskin:383747683
   enable-remaining-players-text: true
   remaining-players-text: '... and %s more'
   empty-slot-ping-value: 1000
@@ -249,6 +249,8 @@ per-world-playerlist:
     minigames:
       - paintball
       - bedwars
+
+compensate-for-packetevents-bug: false
 
 #####################################################################
 # PROXY ONLY - THE FOLLOWING SECTION IS ONLY FOR PROXY INSTALLATION #

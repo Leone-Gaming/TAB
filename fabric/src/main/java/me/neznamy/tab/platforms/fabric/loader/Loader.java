@@ -75,12 +75,10 @@ public interface Loader {
      *
      * @param   modifier
      *          Modifier to convert
-     * @param   modern
-     *          Whether RGB should be supported or not
      * @return  Converted style
      */
     @NotNull
-    default Style convertModifier(@NotNull ChatModifier modifier, boolean modern) {
+    default Style convertModifier(@NotNull ChatModifier modifier) {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
@@ -371,6 +369,18 @@ public interface Loader {
      *          Message to log
      */
     default void logWarn(@NotNull TabComponent message) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    /**
+     * Creates command source stack from ServerPlayer.
+     *
+     * @param   player
+     *          Player to create command source stack from
+     * @return  command source stack from player
+     */
+    @NotNull
+    default CommandSourceStack createCommandSourceStack(@NotNull ServerPlayer player) {
         throw new UnsupportedOperationException("Not implemented.");
     }
 }
