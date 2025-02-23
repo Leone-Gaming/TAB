@@ -4,8 +4,8 @@ import com.mojang.authlib.properties.Property;
 import io.netty.channel.Channel;
 import me.neznamy.tab.platforms.fabric.FabricScoreboard;
 import me.neznamy.tab.platforms.fabric.FabricTabList;
-import me.neznamy.tab.shared.chat.ChatModifier;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.ChatModifier;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import net.minecraft.commands.CommandSourceStack;
@@ -71,6 +71,30 @@ public interface Loader {
     }
 
     /**
+     * Creates new translatable component using given text.
+     *
+     * @param   text
+     *          Text to translate
+     * @return  Text component with given text
+     */
+    @NotNull
+    default Component newTranslatableComponent(@NotNull String text) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    /**
+     * Creates new keybind component using given text.
+     *
+     * @param   key
+     *          Key bind
+     * @return  Text component with given text
+     */
+    @NotNull
+    default Component newKeybindComponent(@NotNull String key) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    /**
      * Converts TAB's ChatModifier class to Minecraft Style class.
      *
      * @param   modifier
@@ -79,18 +103,6 @@ public interface Loader {
      */
     @NotNull
     default Style convertModifier(@NotNull ChatModifier modifier) {
-        throw new UnsupportedOperationException("Not implemented.");
-    }
-
-    /**
-     * Adds sibling to a component.
-     *
-     * @param   parent
-     *          Parent to add sibling to
-     * @param   child
-     *          Sibling to add
-     */
-    default void addSibling(@NotNull Component parent, @NotNull Component child) {
         throw new UnsupportedOperationException("Not implemented.");
     }
 

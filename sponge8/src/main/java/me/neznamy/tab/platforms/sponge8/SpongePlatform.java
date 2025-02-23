@@ -6,11 +6,10 @@ import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.backend.BackendPlatform;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.features.PerWorldPlayerListConfiguration;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.types.TabFeature;
-import me.neznamy.tab.shared.hook.AdventureHook;
 import me.neznamy.tab.shared.placeholders.expansion.EmptyTabExpansion;
 import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
 import me.neznamy.tab.shared.platform.BossBar;
@@ -113,8 +112,8 @@ public class SpongePlatform implements BackendPlatform {
 
     @Override
     @NotNull
-    public Component convertComponent(@NotNull TabComponent component, boolean modern) {
-        return AdventureHook.toAdventureComponent(component);
+    public Component convertComponent(@NotNull TabComponent component) {
+        return component.toAdventure();
     }
 
     @Override

@@ -7,7 +7,7 @@ import me.neznamy.tab.shared.Property;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.SimpleComponent;
+import me.neznamy.chat.component.SimpleTextComponent;
 import me.neznamy.tab.shared.cpu.ThreadExecutor;
 import me.neznamy.tab.shared.features.scoreboard.ScoreboardConfiguration.ScoreboardDefinition;
 import me.neznamy.tab.shared.features.scoreboard.lines.LongLine;
@@ -21,7 +21,10 @@ import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -151,7 +154,7 @@ public class ScoreboardImpl extends RefreshableFeature implements me.neznamy.tab
                 ScoreboardManagerImpl.OBJECTIVE_NAME,
                 manager.getCache().get(p.scoreboardData.titleProperty.get()),
                 Scoreboard.HealthDisplay.INTEGER,
-                new SimpleComponent("")
+                new SimpleTextComponent("")
         );
         for (Line s : lines) {
             ((ScoreboardLine)s).register(p);
@@ -176,10 +179,14 @@ public class ScoreboardImpl extends RefreshableFeature implements me.neznamy.tab
     public void removePlayer(@NonNull TabPlayer p) {
         if (p.scoreboardData.activeScoreboard != this) return; // not registered
         p.getScoreboard().unregisterObjective(ScoreboardManagerImpl.OBJECTIVE_NAME);
-        for (Line line : lines) {
-            if (((ScoreboardLine)line).isShownTo(p))
-                p.getScoreboard().unregisterTeam(((ScoreboardLine)line).getTeamName());
+        for (Line l : lines) {
+            ScoreboardLine line = (ScoreboardLine) l;
+            if (line.isShownTo(p)) {
+                p.getScoreboard().unregisterTeam(line.getTeamName());
+                line.removePlayerSilently(p);
+            }
         }
+        players.remove(p);
         p.scoreboardData.activeScoreboard = null;
         p.scoreboardData.titleProperty = null;
         p.scoreboardData.lineProperties.clear();
@@ -201,7 +208,7 @@ public class ScoreboardImpl extends RefreshableFeature implements me.neznamy.tab
                 ScoreboardManagerImpl.OBJECTIVE_NAME,
                 manager.getCache().get(refreshed.scoreboardData.titleProperty.updateAndGet()),
                 Scoreboard.HealthDisplay.INTEGER,
-                new SimpleComponent("")
+                new SimpleTextComponent("")
         );
     }
 
@@ -264,7 +271,7 @@ public class ScoreboardImpl extends RefreshableFeature implements me.neznamy.tab
                     ScoreboardManagerImpl.OBJECTIVE_NAME,
                     manager.getCache().get(p.scoreboardData.titleProperty.get()),
                     Scoreboard.HealthDisplay.INTEGER,
-                    new SimpleComponent("")
+                    new SimpleTextComponent("")
             );
         }
     }

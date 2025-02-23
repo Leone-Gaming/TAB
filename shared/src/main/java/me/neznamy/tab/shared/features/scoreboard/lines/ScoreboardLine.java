@@ -2,12 +2,11 @@ package me.neznamy.tab.shared.features.scoreboard.lines;
 
 import lombok.Getter;
 import lombok.NonNull;
+import me.neznamy.chat.TextColor;
 import me.neznamy.tab.api.scoreboard.Line;
 import me.neznamy.tab.shared.Limitations;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.TextColor;
 import me.neznamy.tab.shared.cpu.ThreadExecutor;
 import me.neznamy.tab.shared.features.scoreboard.ScoreRefresher;
 import me.neznamy.tab.shared.features.scoreboard.ScoreboardImpl;
@@ -148,7 +147,7 @@ public abstract class ScoreboardLine extends RefreshableFeature implements Line,
                 Scoreboard.CollisionRule.NEVER,
                 Collections.singletonList(fakePlayer),
                 0,
-                TextColor.legacy(EnumChatFormat.RESET)
+                TextColor.RESET
         );
         shownPlayers.add(p);
     }
@@ -206,7 +205,7 @@ public abstract class ScoreboardLine extends RefreshableFeature implements Line,
             String[] prefixOther = split(text, Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13);
             prefixValue = prefixOther[0];
             String other = prefixOther[1];
-            other = playerNameStart + EnumChatFormat.getLastColors(prefixValue) + other;
+            other = playerNameStart + getLastColors(prefixValue) + other;
             String[] nameSuffix = split(other, maxNameLength);
             nameValue = nameSuffix[0];
             suffixValue = nameSuffix[1];
@@ -254,7 +253,7 @@ public abstract class ScoreboardLine extends RefreshableFeature implements Line,
                 teamName,
                 parent.getManager().getCache().get(prefix),
                 parent.getManager().getCache().get(suffix),
-                TextColor.legacy(EnumChatFormat.RESET)
+                TextColor.RESET
         );
     }
 
@@ -284,5 +283,32 @@ public abstract class ScoreboardLine extends RefreshableFeature implements Line,
     @Override
     public String getRefreshDisplayName() {
         return "Updating Scoreboard lines";
+    }
+
+    /**
+     * Returns last color codes used in provided text.
+     *
+     * @param   input
+     *          text to get last colors from
+     * @return  last colors used in provided text or empty string if nothing was found
+     */
+    @NotNull
+    protected String getLastColors(@NotNull String input) {
+        StringBuilder result = new StringBuilder();
+        int length = input.length();
+        for (int index = length - 1; index > -1; index--) {
+            char section = input.charAt(index);
+            if ((section == '§' || section == '&') && (index < length - 1)) {
+                char c = input.charAt(index + 1);
+                if ("0123456789AaBbCcDdEeFfKkLlMmNnOoRr".contains(String.valueOf(c))) {
+                    result.insert(0, '§');
+                    result.insert(1, c);
+                    if ("0123456789AaBbCcDdEeFfRr".contains(String.valueOf(c))) {
+                        break;
+                    }
+                }
+            }
+        }
+        return result.toString();
     }
 }

@@ -6,9 +6,13 @@ import lombok.Setter;
 import me.neznamy.tab.api.integration.VanishIntegration;
 import me.neznamy.tab.api.placeholder.PlayerPlaceholder;
 import me.neznamy.tab.api.placeholder.RelationalPlaceholder;
-import me.neznamy.tab.shared.chat.SimpleComponent;
-import me.neznamy.tab.shared.chat.TabComponent;
-import me.neznamy.tab.shared.features.*;
+import me.neznamy.tab.shared.Property;
+import me.neznamy.tab.shared.ProtocolVersion;
+import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.TabConstants;
+import me.neznamy.chat.component.TabComponent;
+import me.neznamy.tab.shared.event.impl.PlayerLoadEventImpl;
+import me.neznamy.tab.shared.features.NickCompatibility;
 import me.neznamy.tab.shared.features.belowname.BelowNamePlayerData;
 import me.neznamy.tab.shared.features.bossbar.BossBarManagerImpl;
 import me.neznamy.tab.shared.features.globalplayerlist.GlobalPlayerList;
@@ -19,10 +23,8 @@ import me.neznamy.tab.shared.features.playerlist.PlayerList;
 import me.neznamy.tab.shared.features.playerlistobjective.YellowNumber;
 import me.neznamy.tab.shared.features.scoreboard.ScoreboardManagerImpl;
 import me.neznamy.tab.shared.features.sorting.Sorting;
-import me.neznamy.tab.shared.hook.FloodgateHook;
-import me.neznamy.tab.shared.*;
 import me.neznamy.tab.shared.features.types.RefreshableFeature;
-import me.neznamy.tab.shared.event.impl.PlayerLoadEventImpl;
+import me.neznamy.tab.shared.hook.FloodgateHook;
 import net.luckperms.api.model.user.User;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -236,16 +238,10 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
      *
      * @param   message
      *          message to be sent
-     * @param   translateColors
-     *          whether colors should be translated or not
      */
-    public void sendMessage(@NotNull String message, boolean translateColors) {
+    public void sendMessage(@NotNull String message) {
         if (message.isEmpty()) return;
-        if (translateColors) {
-            sendMessage(TabComponent.fromColoredText(message));
-        } else {
-            sendMessage(new SimpleComponent(message));
-        }
+        sendMessage(TabComponent.fromColoredText(message));
     }
 
     @Override
@@ -331,7 +327,9 @@ public abstract class TabPlayer implements me.neznamy.tab.api.TabPlayer {
     public boolean canSee(@NotNull TabPlayer target) {
         if (!VanishIntegration.getHandlers().isEmpty()) {
             try {
-                return VanishIntegration.getHandlers().stream().allMatch(integration -> integration.canSee(this, target));
+                for (VanishIntegration i : VanishIntegration.getHandlers()) {
+                    if (!i.canSee(this, target)) return false;
+                }
             } catch (ConcurrentModificationException e) {
                 // PV error, try again
                 return canSee(target);

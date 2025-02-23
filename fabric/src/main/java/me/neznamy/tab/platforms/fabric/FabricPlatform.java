@@ -9,9 +9,10 @@ import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.backend.BackendPlatform;
-import me.neznamy.tab.shared.chat.SimpleComponent;
-import me.neznamy.tab.shared.chat.StructuredComponent;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.KeybindComponent;
+import me.neznamy.chat.component.TabComponent;
+import me.neznamy.chat.component.TextComponent;
+import me.neznamy.chat.component.TranslatableComponent;
 import me.neznamy.tab.shared.features.PerWorldPlayerListConfiguration;
 import me.neznamy.tab.shared.features.PlaceholderManagerImpl;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
@@ -134,21 +135,28 @@ public class FabricPlatform implements BackendPlatform {
 
     @Override
     @NotNull
-    public Component convertComponent(@NotNull TabComponent component, boolean modern) {
-        if (component instanceof SimpleComponent component1) {
-            return FabricMultiVersion.newTextComponent(component1.getText());
+    public Component convertComponent(@NotNull TabComponent component) {
+        // Component type
+        Component nmsComponent;
+        if (component instanceof TextComponent) {
+            nmsComponent = FabricMultiVersion.newTextComponent(((TextComponent) component).getText());
+        } else if (component instanceof TranslatableComponent) {
+            nmsComponent = FabricMultiVersion.newTranslatableComponent(((TranslatableComponent) component).getKey());
+        } else if (component instanceof KeybindComponent) {
+            nmsComponent = FabricMultiVersion.newKeybindComponent(((KeybindComponent) component).getKeybind());
+        } else {
+            throw new IllegalStateException("Unexpected component type: " + component.getClass().getName());
         }
-        if (component instanceof StructuredComponent component1) {
-            Component nmsComponent = FabricMultiVersion.newTextComponent(component1.getText());
 
-            FabricMultiVersion.setStyle(nmsComponent, FabricMultiVersion.convertModifier(component1.getModifier()));
-            for (StructuredComponent extra : component1.getExtra()) {
-                FabricMultiVersion.addSibling(nmsComponent, convertComponent(extra, modern));
-            }
-            return nmsComponent;
+        // Component style
+        FabricMultiVersion.setStyle(nmsComponent, FabricMultiVersion.convertModifier(component.getModifier()));
+
+        // Extra
+        for (TabComponent extra : component.getExtra()) {
+            nmsComponent.getSiblings().add(convertComponent(extra));
         }
-        throw new UnsupportedOperationException("Adventure components created using MiniMessage syntax are not supported on Fabric. " +
-                "You can request the implementation if you ran into this error.");
+
+        return nmsComponent;
     }
 
     @Override

@@ -1,9 +1,8 @@
 package me.neznamy.tab.shared.hook;
 
+import me.neznamy.chat.component.TabComponent;
+import me.neznamy.chat.hook.AdventureHook;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.chat.AdventureComponent;
-import me.neznamy.tab.shared.chat.TabComponent;
-import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -20,11 +19,10 @@ public class MiniMessageHook {
     @Nullable
     private static MiniMessage createMiniMessage() {
         try {
-            if (ReflectionUtils.classExists("net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer")) {
-                return MiniMessage.builder().postProcessor(c->c).build();
-            }
-        } catch (Throwable ignored) {}
-        return null;
+            return MiniMessage.builder().postProcessor(c -> c).build();
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     /**
@@ -52,7 +50,7 @@ public class MiniMessageHook {
             return null;
         }
         try {
-            return new AdventureComponent(mm.deserialize(text));
+            return AdventureHook.convert(mm.deserialize(text));
         } catch (Throwable t) {
             TAB.getInstance().getErrorManager().printError("Failed to convert \"" + text + "\" into a MiniMessage component", t);
             return null;

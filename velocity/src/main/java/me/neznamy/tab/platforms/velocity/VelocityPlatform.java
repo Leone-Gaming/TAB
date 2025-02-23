@@ -11,10 +11,11 @@ import me.neznamy.tab.platforms.velocity.features.VelocityRedisSupport;
 import me.neznamy.tab.platforms.velocity.hook.VelocityPremiumVanishHook;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.TextColor;
+import me.neznamy.chat.component.TabComponent;
+import me.neznamy.chat.component.TextComponent;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
-import me.neznamy.tab.shared.hook.AdventureHook;
 import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabList;
@@ -81,10 +82,10 @@ public class VelocityPlatform extends ProxyPlatform {
                 // Scoreboard API failed to enable due to an error
             }
         } else {
-            logInfo(TabComponent.fromColoredText("&cAs of version 5.0.0, TAB no longer uses TAB-Bridge to encode scoreboard packets on Velocity. " +
+            logInfo(new TextComponent("As of version 5.0.0, TAB no longer uses TAB-Bridge to encode scoreboard packets on Velocity. " +
                     "Instead, it uses a custom made plugin that adds scoreboard API directly to Velocity, which offers better performance and reliability. " +
                     "You can download the plugin from https://github.com/NEZNAMY/VelocityScoreboardAPI/releases/. " +
-                    "Until then, the following features will not work: scoreboard-teams, belowname-objective, playerlist-objective, scoreboard"));
+                    "Until then, the following features will not work: scoreboard-teams, belowname-objective, playerlist-objective, scoreboard", TextColor.RED));
         }
         if (plugin.getServer().getPluginManager().isLoaded("premiumvanish")) {
             new VelocityPremiumVanishHook().register();
@@ -150,8 +151,8 @@ public class VelocityPlatform extends ProxyPlatform {
 
     @Override
     @NotNull
-    public Component convertComponent(@NotNull TabComponent component, boolean modern) {
-        return AdventureHook.toAdventureComponent(component);
+    public Component convertComponent(@NotNull TabComponent component) {
+        return component.toAdventure();
     }
 
     @Override

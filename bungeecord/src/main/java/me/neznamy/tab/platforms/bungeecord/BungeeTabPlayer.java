@@ -1,11 +1,10 @@
 package me.neznamy.tab.platforms.bungeecord;
 
 import me.neznamy.tab.shared.TabConstants;
-import me.neznamy.tab.shared.chat.TabComponent;
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.proxy.ProxyTabPlayer;
 import net.md_5.bungee.UserConnection;
-import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.connection.InitialHandler;
 import net.md_5.bungee.connection.LoginResult;
@@ -43,7 +42,7 @@ public class BungeeTabPlayer extends ProxyTabPlayer {
 
     @Override
     public void sendMessage(@NotNull TabComponent message) {
-        getPlayer().sendMessage((BaseComponent) message.convert(getVersion()));
+        getPlayer().sendMessage(getPlatform().transformComponent(message, getVersion()));
     }
 
     @Override

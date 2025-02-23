@@ -1,7 +1,7 @@
 package me.neznamy.tab.shared.platform;
 
+import me.neznamy.chat.component.TabComponent;
 import me.neznamy.tab.shared.GroupManager;
-import me.neznamy.tab.shared.chat.TabComponent;
 import me.neznamy.tab.shared.features.PerWorldPlayerListConfiguration;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
 import me.neznamy.tab.shared.features.redis.RedisSupport;
@@ -129,16 +129,14 @@ public interface Platform {
     boolean isProxy();
 
     /**
-     * Converts TAB component into platform's component.
+     * Converts thhe TAB component into platform's component.
      *
      * @param   component
      *          Component to convert
-     * @param   modern
-     *          Whether clients supports RGB or not
      * @return  Converted component
      */
     @NotNull
-    Object convertComponent(@NotNull TabComponent component, boolean modern);
+    Object convertComponent(@NotNull TabComponent component);
 
     /**
      * Creates new scoreboard instance for given player.
@@ -192,6 +190,15 @@ public interface Platform {
      * @return   {@code true} if server has a scoreboard implementation, {@code false} if not
      */
     boolean supportsScoreboards();
+
+    /**
+     * Returns {@code true} if the server is safe from being affected by the packetevents bug with limitations, {@code false} if not.
+     *
+     * @return  {@code true} if server is safe, {@code false} if not
+     */
+    default boolean isSafeFromPacketEventsBug() {
+        return true;
+    }
 
     /**
      * Returns the command string used by this platform without "/"

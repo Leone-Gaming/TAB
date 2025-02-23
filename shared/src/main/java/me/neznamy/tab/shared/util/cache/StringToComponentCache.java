@@ -1,12 +1,11 @@
 package me.neznamy.tab.shared.util.cache;
 
-import me.neznamy.tab.shared.chat.EnumChatFormat;
-import me.neznamy.tab.shared.chat.SimpleComponent;
-import me.neznamy.tab.shared.chat.TabComponent;
-import me.neznamy.tab.shared.chat.TextColor;
-import me.neznamy.tab.shared.chat.rgb.RGBUtils;
+import me.neznamy.chat.TextColor;
+import me.neznamy.chat.component.SimpleTextComponent;
+import me.neznamy.chat.component.TabComponent;
+import me.neznamy.chat.rgb.RGBUtils;
+import me.neznamy.chat.util.TriFunction;
 import me.neznamy.tab.shared.hook.MiniMessageHook;
-import me.neznamy.tab.shared.util.function.TriFunction;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Locale;
@@ -44,10 +43,11 @@ public class StringToComponentCache extends Cache<String, TabComponent> {
                 String mmFormatted = RGBUtils.getInstance().applyFormats(text, kyoriGradientFormatter, kyoriRGBFormatter);
 
                 // Convert legacy codes into kyori format
-                for (EnumChatFormat format : EnumChatFormat.VALUES) {
-                    if (mmFormatted.contains(format.getFormat())) {
-                        String colorName = format == EnumChatFormat.UNDERLINE ? "underlined" : format.name().toLowerCase(Locale.US);
-                        mmFormatted = mmFormatted.replace(format.getFormat(), "<" + colorName + ">");
+                for (TextColor format : TextColor.LEGACY_COLORS.values()) {
+                    String sequence = "§" + format.getLegacyColor().getCharacter();
+                    if (mmFormatted.contains(sequence)) {
+                        String colorName = format == TextColor.UNDERLINE ? "underlined" : format.getLegacyColor().name().toLowerCase(Locale.US);
+                        mmFormatted = mmFormatted.replace(sequence, "<" + colorName + ">");
                     }
                 }
 
@@ -59,7 +59,7 @@ public class StringToComponentCache extends Cache<String, TabComponent> {
             }
             return text.contains("#") || text.contains("§x") || text.contains("<") ?
                     TabComponent.fromColoredText(text) : //contains RGB colors or font
-                    new SimpleComponent(text); //no RGB
+                    new SimpleTextComponent(text); //no RGB
         });
     }
 
