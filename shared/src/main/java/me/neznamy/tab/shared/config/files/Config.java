@@ -1,6 +1,7 @@
 package me.neznamy.tab.shared.config.files;
 
 import lombok.Getter;
+import lombok.NonNull;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.config.Converter;
 import me.neznamy.tab.shared.config.file.ConfigurationFile;
@@ -78,10 +79,10 @@ public class Config {
         converter.convert409to410(config);
         converter.convert419to500(config);
         converter.convert501to502(config);
-        converter.convert507to508(config);
+        converter.convert507to510(config);
 
         conditions = ConditionsSection.fromSection(config.getConfigurationSection("conditions"));
-        refresh = PlaceholderRefreshConfiguration.fromSection(config.getConfigurationSection("placeholderapi-refresh-intervals"));
+        refresh = PlaceholderRefreshConfiguration.fromSection(config.getConfigurationSection("placeholder-refresh-intervals"));
         replacements = PlaceholderReplacementsConfiguration.fromSection(config.getConfigurationSection("placeholder-output-replacements"));
         placeholders = PlaceholdersConfiguration.fromSection(config.getConfigurationSection("placeholders"));
         if (config.getBoolean("belowname-objective.enabled", false)) belowname = BelowNameConfiguration.fromSection(config.getConfigurationSection("belowname-objective"));
@@ -136,7 +137,7 @@ public class Config {
      */
     @SuppressWarnings("unchecked")
     @NotNull
-    private <T> T getSecretOption(@NotNull String path, @NotNull T defaultValue) {
+    private <T> T getSecretOption(@NonNull String path, @NonNull T defaultValue) {
         Object value = config.getObject(path);
         return value == null ? defaultValue : (T) value;
     }
