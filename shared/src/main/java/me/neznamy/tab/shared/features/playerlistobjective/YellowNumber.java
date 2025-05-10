@@ -70,32 +70,6 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
         }
     }
 
-    /**
-     * Returns current value for specified player parsed to int
-     *
-     * @param p Player to get value of
-     * @return Current value of player
-     */
-    public int getValueNumber(@NotNull TabPlayer p) {
-        String string = p.playerlistObjectiveData.valueLegacy.updateAndGet();
-        try {
-            return Integer.parseInt(string);
-        } catch (NumberFormatException e) {
-            // Not an integer (float or invalid)
-            try {
-                int value = (int) Math.round(Double.parseDouble(string));
-                // Float
-                TAB.getInstance().getConfigHelper().runtime().floatInPlayerlistObjective(p, configuration.getValue(), string);
-                return value;
-            } catch (NumberFormatException e2) {
-                // Not a float (invalid)
-                TAB.getInstance().getConfigHelper().runtime().invalidNumberForPlayerlistObjective(p, configuration.getValue(), string);
-                return 0;
-            }
-        }
-    }
-
-
     @Override
     public void load() {
         onlinePlayers = new OnlinePlayers(TAB.getInstance().getOnlinePlayers());
@@ -301,27 +275,6 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
     @Override
     public String getFeatureName() {
         return "Playerlist Objective";
-    }
-
-    /**
-     * Class holding header/footer data for players.
-     */
-    public static class PlayerData {
-
-        /**
-         * Player's score value
-         */
-        public Property valueLegacy;
-
-        /**
-         * Player's score number format
-         */
-        public Property valueModern;
-
-        /**
-         * Flag tracking whether this feature is disabled for the player with condition or not
-         */
-        public final AtomicBoolean disabled = new AtomicBoolean();
     }
 
     /**
