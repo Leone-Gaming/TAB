@@ -118,16 +118,37 @@ public class BukkitPlatform implements BackendPlatform {
     @NotNull
     @SneakyThrows
     private ImplementationProvider findImplementationProvider() {
-        if (ReflectionUtils.classExists("org.bukkit.craftbukkit.CraftServer") &&
-                (serverVersion == ProtocolVersion.V1_21_4 || serverVersion == ProtocolVersion.V1_21_5)) {
-            return (ImplementationProvider) Class.forName("me.neznamy.tab.platforms.paper.PaperImplementationProvider").getConstructor().newInstance();
+        // Check for mojang-mapped paper (1.20.5+)
+        if (ReflectionUtils.classExists("org.bukkit.craftbukkit.CraftServer")) {
+            String paperPackage = null;
+            switch (serverVersion) {
+                case V1_20_5:
+                case V1_20_6:
+                case V1_21:
+                case V1_21_1:
+                    paperPackage = "1_20_5";
+                    break;
+                case V1_21_2:
+                case V1_21_3:
+                    paperPackage = "1_21_2";
+                    break;
+                case V1_21_4:
+                case V1_21_5:
+                    paperPackage = "1_21_4";
+                    break;
+            }
+            if (paperPackage != null) {
+                return (ImplementationProvider) Class.forName("me.neznamy.tab.platforms.paper_" + paperPackage + ".PaperImplementationProvider").getConstructor().newInstance();
+            }
         }
 
+        // Check for direct NMS on some supported versions
         String serverPackage = BukkitReflection.getServerVersion().getServerPackage();
         if (Arrays.asList("v1_8_R3", "v1_12_R1", "v1_16_R3", "v1_17_R1", "v1_18_R2", "v1_19_R1").contains(serverPackage) && serverVersion != ProtocolVersion.V1_19) {
             return (ImplementationProvider) Class.forName("me.neznamy.tab.platforms.bukkit." + serverPackage + ".NMSImplementationProvider").getConstructor().newInstance();
         }
 
+        // Try reflection
         try {
             return new ReflectionImplementationProvider();
         } catch (Throwable e) {
@@ -246,7 +267,9 @@ public class BukkitPlatform implements BackendPlatform {
             Bukkit.getScheduler().runTask(plugin, () -> {
                 long time = System.nanoTime();
                 ppl[0].updateValue(p, placeholderAPI ? PlaceholderAPI.setPlaceholders((Player) p.getPlayer(), syncedPlaceholder) : identifier);
-                TAB.getInstance().getCPUManager().addPlaceholderTime(identifier, System.nanoTime() - time);
+                long totalTime =  System.nanoTime()-time;
+                TAB.getInstance().getCPUManager().addPlaceholderTime(identifier, totalTime);
+                TAB.getInstance().getCpu().addTime(TAB.getInstance().getPlaceholderManager().getFeatureName(), TabConstants.CpuUsageCategory.PLACEHOLDER_REQUEST, totalTime);
             });
             return null;
         });
@@ -386,6 +409,7 @@ public class BukkitPlatform implements BackendPlatform {
 
     @Override
     public double getMSPT() {
+        System.out.println("Bukkit MSPT");
         if (paperMspt) return Bukkit.getAverageTickTime();
         return -1;
     }

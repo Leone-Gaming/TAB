@@ -9,7 +9,7 @@ repositories {
     maven("https://oss.sonatype.org/content/repositories/snapshots")
 }
 
-val version = "1.21.5-R0.1-SNAPSHOT"
+val version = "1.21.3-R0.1-SNAPSHOT" // 1.21.2 causes gradle error, but the versions are interchangeable
 
 dependencies {
     implementation(projects.bukkit)
