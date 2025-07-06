@@ -2,12 +2,9 @@ package me.neznamy.tab.platforms.paper_1_21_4;
 
 import io.netty.channel.Channel;
 import lombok.Getter;
-import lombok.NonNull;
 import me.neznamy.tab.platforms.bukkit.BukkitTabPlayer;
 import me.neznamy.tab.platforms.bukkit.provider.ComponentConverter;
 import me.neznamy.tab.platforms.bukkit.provider.ImplementationProvider;
-import me.neznamy.tab.platforms.bukkit.provider.viaversion.ViaScoreboard;
-import me.neznamy.tab.platforms.bukkit.provider.viaversion.ViaTabList;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.util.function.FunctionWithException;
@@ -15,7 +12,7 @@ import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Implementation provider using direct Mojang-mapped NMS code for versions 1.21.4 - 1.21.5.
+ * Implementation provider using direct Mojang-mapped NMS code for versions 1.21.4 - 1.21.7.
  */
 @Getter
 public class PaperImplementationProvider implements ImplementationProvider {
@@ -27,16 +24,6 @@ public class PaperImplementationProvider implements ImplementationProvider {
     @NotNull
     public Scoreboard newScoreboard(@NotNull BukkitTabPlayer player) {
         return new PaperPacketScoreboard(player);
-    }
-
-    @Override
-    public void onPacketSend(@NonNull Object packet, @NonNull ViaScoreboard scoreboard) {
-        PaperPacketScoreboard.onPacketSend(packet, scoreboard);
-    }
-
-    @Override
-    public void onPacketSend(@NonNull Object packet, @NonNull ViaTabList tabList) {
-        PaperPacketTabList.onPacketSend(packet, tabList);
     }
 
     @Override
