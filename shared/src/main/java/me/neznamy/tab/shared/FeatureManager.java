@@ -50,12 +50,6 @@ public class FeatureManager {
     @NotNull
     private TabFeature[] values = new TabFeature[0];
 
-    /** Flag tracking presence of a feature listening to command preprocess for faster check with better performance */
-    private boolean hasCommandListener;
-
-    /** Commands features listen to */
-    private final List<String> listeningCommands = new ArrayList<>();
-
     /**
      * Calls load() on all features.
      * This function is called on plugin startup.
@@ -100,6 +94,7 @@ public class FeatureManager {
                 ((ProxyTabPlayer)player).sendPluginMessage(new Unload());
             }
         }
+        TAB.getInstance().getPlatform().unregisterAllCustomCommands();
     }
 
     /**
@@ -185,7 +180,7 @@ public class FeatureManager {
         // Player is actually not online anymore, remove to avoid memory leak
         for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
             ((TrackedTabList<?>)all.getTabList()).getForcedDisplayNames().remove(id);
-            ((TrackedTabList<?>)all.getTabList()).getForcedGameModes().remove(id);
+            ((TrackedTabList<?>)all.getTabList()).getBlockedSpectators().remove(id);
         }
     }
 
@@ -267,29 +262,6 @@ public class FeatureManager {
             }
         }
         ((PlayerPlaceholder)TAB.getInstance().getPlaceholderManager().getPlaceholder(TabConstants.Placeholder.SERVER)).updateValue(changed, to.getName());
-    }
-
-    /**
-     * Forwards command event to all features. Returns {@code true} if the event
-     * should be cancelled, {@code false} if not.
-     *
-     * @param   sender
-     *          Command sender
-     * @param   command
-     *          Executed command
-     * @return  {@code true} if event should be cancelled, {@code false} if not.
-     */
-    public boolean onCommand(@Nullable TabPlayer sender, @NotNull String command) {
-        if (!hasCommandListener || sender == null) return false;
-        if (!listeningCommands.contains(command)) return false;
-        boolean cancel = false;
-        for (TabFeature f : values) {
-            if (!(f instanceof CommandListener)) continue;
-            long time = System.nanoTime();
-            if (((CommandListener)f).onCommand(sender, command)) cancel = true;
-            TAB.getInstance().getCPUManager().addTime(f.getFeatureName(), CpuUsageCategory.COMMAND_PREPROCESS, System.nanoTime()-time);
-        }
-        return cancel;
     }
 
     /**
@@ -514,10 +486,6 @@ public class FeatureManager {
         }
         if (featureHandler instanceof GameModeListener) {
             TAB.getInstance().getPlaceholderManager().addUsedPlaceholder(TabConstants.Placeholder.GAMEMODE);
-        }
-        if (featureHandler instanceof CommandListener) {
-            hasCommandListener = true;
-            listeningCommands.add(((CommandListener) featureHandler).getCommand());
         }
     }
 

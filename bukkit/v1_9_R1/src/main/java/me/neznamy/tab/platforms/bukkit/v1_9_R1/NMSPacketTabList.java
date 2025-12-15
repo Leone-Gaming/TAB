@@ -89,11 +89,6 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
     }
 
     @Override
-    public boolean containsEntry(@NonNull UUID entry) {
-        return true; // TODO?
-    }
-
-    @Override
     @Nullable
     public Skin getSkin() {
         Collection<Property> properties = ((CraftPlayer)player.getPlayer()).getProfile().getProperties().get(TEXTURES_PROPERTY);
@@ -121,7 +116,6 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
             IChatBaseComponent header = (IChatBaseComponent) HEADER.get(tablist);
             IChatBaseComponent footer = (IChatBaseComponent) FOOTER.get(tablist);
             if (header != this.header.convert() || footer != this.footer.convert()) {
-                printHeaderFooterOverrideMessage(header.toPlainText(), footer.toPlainText());
                 return newHeaderFooter(this.header, this.footer);
             }
         }
@@ -145,9 +139,8 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
                 }
             }
             if (action == EnumPlayerInfoAction.UPDATE_GAME_MODE || action == EnumPlayerInfoAction.ADD_PLAYER) {
-                Integer forcedGameMode = getForcedGameModes().get(id);
-                if (forcedGameMode != null && forcedGameMode != gameMode) {
-                    gameMode = forcedGameMode;
+                if (getBlockedSpectators().contains(id) && gameMode == 3) {
+                    gameMode = 0;
                     rewriteEntry = rewritePacket = true;
                 }
             }

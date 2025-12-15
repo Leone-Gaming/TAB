@@ -19,7 +19,6 @@ public class TabConstants {
 
     public static final int BSTATS_PLUGIN_ID_BUKKIT = 5304;
     public static final int BSTATS_PLUGIN_ID_BUNGEE = 10535;
-    public static final int BSTATS_PLUGIN_ID_SPONGE = 17732;
     public static final int BSTATS_PLUGIN_ID_VELOCITY = 10533;
 
     public static final int MAX_LOG_SIZE = 16 * 1024 * 1024;
@@ -36,7 +35,6 @@ public class TabConstants {
         public static final String PLAYER_QUIT = "Player Quit";
         public static final String WORLD_SWITCH = "World Switch";
         public static final String SERVER_SWITCH = "Server Switch";
-        public static final String COMMAND_PREPROCESS = "Command Preprocess";
         public static final String PROXY_MESSAGE = "Proxy Message processing";
 
         public static final String PLUGIN_MESSAGE_DECODE = "Decoding message";

@@ -36,6 +36,7 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
     private static final EnumPlayerInfoAction UPDATE_GAME_MODE = EnumPlayerInfoAction.b;
     private static final EnumPlayerInfoAction UPDATE_LATENCY = EnumPlayerInfoAction.c;
     private static final EnumPlayerInfoAction UPDATE_DISPLAY_NAME = EnumPlayerInfoAction.d;
+    private static final EnumPlayerInfoAction REMOVE_PLAYER = EnumPlayerInfoAction.e;
 
     /**
      * Constructs new instance.
@@ -96,11 +97,6 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
     }
 
     @Override
-    public boolean containsEntry(@NonNull UUID entry) {
-        return true; // TODO?
-    }
-
-    @Override
     @Nullable
     public Skin getSkin() {
         Collection<Property> properties = ((CraftPlayer)player.getPlayer()).getProfile().getProperties().get(TEXTURES_PROPERTY);
@@ -117,7 +113,6 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
             PacketPlayOutPlayerListHeaderFooter tablist = (PacketPlayOutPlayerListHeaderFooter) packet;
             if (header == null || footer == null) return packet;
             if (tablist.a != header.convert() || tablist.b != footer.convert()) {
-                printHeaderFooterOverrideMessage(tablist.a.getString(), tablist.b.getString());
                 return new PacketPlayOutPlayerListHeaderFooter(header.convert(), footer.convert());
             }
         }
@@ -142,9 +137,8 @@ public class NMSPacketTabList extends TrackedTabList<BukkitTabPlayer> {
                 }
             }
             if (action == UPDATE_GAME_MODE || action == ADD_PLAYER) {
-                Integer forcedGameMode = getForcedGameModes().get(id);
-                if (forcedGameMode != null && forcedGameMode != gameMode) {
-                    gameMode = forcedGameMode;
+                if (getBlockedSpectators().contains(id) && gameMode == 3) {
+                    gameMode = 0;
                     rewriteEntry = rewritePacket = true;
                 }
             }

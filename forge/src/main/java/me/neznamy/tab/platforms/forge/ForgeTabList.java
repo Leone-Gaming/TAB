@@ -6,9 +6,8 @@ import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
 import lombok.NonNull;
 import lombok.SneakyThrows;
-import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.TAB;
-import me.neznamy.tab.shared.platform.TabList;
+import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.decorators.TrackedTabList;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.minecraft.network.chat.Component;
@@ -95,11 +94,6 @@ public class ForgeTabList extends TrackedTabList<ForgeTabPlayer> {
     }
 
     @Override
-    public boolean containsEntry(@NonNull UUID entry) {
-        return true; // TODO?
-    }
-
-    @Override
     @Nullable
     public Skin getSkin() {
         Collection<Property> properties = player.getPlayer().getGameProfile().properties().get(TEXTURES_PROPERTY);
@@ -115,7 +109,6 @@ public class ForgeTabList extends TrackedTabList<ForgeTabPlayer> {
         if (packet instanceof ClientboundTabListPacket tablist) {
             if (header == null || footer == null) return packet;
             if (tablist.header() != header.convert() || tablist.footer() != footer.convert()) {
-                printHeaderFooterOverrideMessage(tablist.header().getString(), tablist.footer().getString());
                 return new ClientboundTabListPacket(header.convert(), footer.convert());
             }
         }
@@ -136,9 +129,8 @@ public class ForgeTabList extends TrackedTabList<ForgeTabPlayer> {
                     }
                 }
                 if (actions.contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_GAME_MODE)) {
-                    Integer forcedGameMode = getForcedGameModes().get(nmsData.profileId());
-                    if (forcedGameMode != null && forcedGameMode != gameMode) {
-                        gameMode = forcedGameMode;
+                    if (getBlockedSpectators().contains(nmsData.profileId()) && gameMode == 3) {
+                        gameMode = 0;
                         rewriteEntry = rewritePacket = true;
                     }
                 }
@@ -198,8 +190,7 @@ public class ForgeTabList extends TrackedTabList<ForgeTabPlayer> {
     private GameProfile createProfile(@NonNull UUID id, @NonNull String name, @Nullable Skin skin) {
         ImmutableMultimap.Builder<String, Property> builder = ImmutableMultimap.builder();
         if (skin != null) {
-            builder.put(TabList.TEXTURES_PROPERTY,
-                    new Property(TabList.TEXTURES_PROPERTY, skin.getValue(), skin.getSignature()));
+            builder.put(TEXTURES_PROPERTY, new Property(TEXTURES_PROPERTY, skin.getValue(), skin.getSignature()));
         }
         return new GameProfile(id, name, new PropertyMap(builder.build()));
     }

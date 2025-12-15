@@ -126,15 +126,6 @@ public interface TabList {
     void addEntry(@NonNull Entry entry);
 
     /**
-     * Returns {@code true} if tablist contains specified entry, {@code false} if not.
-     *
-     * @param   entry
-     *          UUID of entry to check
-     * @return  {@code true} if tablist contains specified entry, {@code false} if not
-     */
-    boolean containsEntry(@NonNull UUID entry);
-
-    /**
      * Sets header and footer to specified values.
      *
      * @param   header
@@ -151,6 +142,26 @@ public interface TabList {
      */
     @Nullable
     Skin getSkin();
+
+    /**
+     * Blocks the player from being displayed as spectator. This means sending packet
+     * to update their gamemode to something else (survival) and marking the player,
+     * changing gamemode in all outgoing packets.
+     *
+     * @param   player
+     *          Player to prevent from being shown as spectator
+     */
+    void blockSpectator(@NonNull TabPlayer player);
+
+    /**
+     * Unblocks the player from being displayed as spectator. This means sending packet
+     * to update their gamemode back to their real gamemode and unmarking the player,
+     * no longer changing gamemode in all outgoing packets.
+     *
+     * @param   player
+     *          Player to allow being shown as spectator
+     */
+    void unblockSpectator(@NonNull TabPlayer player);
 
     /**
      * A subclass representing player list entry
