@@ -47,6 +47,9 @@ public abstract class TrackedTabList<P extends TabPlayer> implements TabList {
     @Nullable
     protected TabComponent footer;
 
+    /** Flag tracking whether all real players should be hidden or not */
+    protected boolean allPlayersHidden;
+
     @Override
     public void updateDisplayName(@NonNull UUID entry, @Nullable TabComponent displayName) {
         forcedDisplayNames.put(entry, displayName);
@@ -116,6 +119,21 @@ public abstract class TrackedTabList<P extends TabPlayer> implements TabList {
     }
 
     @Override
+    public void updateListed(@NonNull TabPlayer target, boolean listed) {
+        if (containsEntry(target.getTablistId())) {
+            updateListed(target.getTablistId(), listed);
+        } else {
+            // Entry is not in tablist. This could be on join. Delay and try again.
+            TAB.getInstance().getCpu().getTablistEntryCheckThread().executeLater(new TimedCaughtTask(TAB.getInstance().getCpu(), () -> {
+                // If entry was added in the meantime
+                if (containsEntry(target.getTablistId())) {
+                    updateListed(target.getTablistId(), listed);
+                }
+            }, TabConstants.Feature.LAYOUT, "Delayed listed update"), 500);
+        }
+    }
+
+    @Override
     public void setPlayerListHeaderFooter(@Nullable TabComponent header, @Nullable TabComponent footer) {
         this.header = header;
         this.footer = footer;
@@ -132,45 +150,6 @@ public abstract class TrackedTabList<P extends TabPlayer> implements TabList {
         if (header != null && footer != null) {
             setPlayerListHeaderFooter0(header, footer);
         }
-    }
-
-    /**
-     * Checks if all entries have display names as configured and if not,
-     * they are forced. Only works on platforms with a full TabList API.
-     * Not needed for platforms which support pipeline injection.
-     */
-    public void checkDisplayNames() {
-        // Empty by default, overridden by Velocity
-    }
-
-    /**
-     * Checks if all entries have game modes as configured and if not,
-     * they are forced. Only works on platforms with a full TabList API.
-     * Not needed for platforms which support pipeline injection.
-     */
-    public void checkGameModes() {
-        // Empty by default, overridden by Velocity
-    }
-
-    /**
-     * Checks if header and footer are as set by the plugin and if not,
-     * they are forced. Only works on platforms with a full TabList API.
-     * Not needed for platforms which support pipeline injection.
-     */
-    public void checkHeaderFooter() {
-        // Empty by default, overridden by Velocity
-    }
-
-    /**
-     * Processes packet for anti-override, ping spoof and nick compatibility.
-     *
-     * @param   packet
-     *          Packet to process
-     * @return  Packet to forward
-     */
-    @NotNull
-    public Object onPacketSend(@NonNull Object packet) {
-        return packet;
     }
 
     @Override
@@ -195,6 +174,32 @@ public abstract class TrackedTabList<P extends TabPlayer> implements TabList {
     public boolean containsEntry(@NonNull UUID entry) {
         return player.getTabListEntryTracker() == null || player.getTabListEntryTracker().containsEntry(entry);
     }
+
+    @Override
+    public void hideAllPlayers() {
+        allPlayersHidden = true;
+        for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
+            updateListed(all, false);
+        }
+    }
+
+    @Override
+    public void showAllPlayers() {
+        allPlayersHidden = false;
+        for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
+            updateListed(all, true);
+        }
+    }
+
+    /**
+     * Processes packet for anti-override, ping spoof and nick compatibility.
+     *
+     * @param   packet
+     *          Packet to process
+     * @return  Packet to forward
+     */
+    @NotNull
+    public abstract Object onPacketSend(@NonNull Object packet);
 
     /**
      * Updates display name of an entry. Using {@code null} makes it undefined and

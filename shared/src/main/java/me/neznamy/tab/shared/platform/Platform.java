@@ -67,9 +67,12 @@ public interface Platform {
      *
      * @param   plugin
      *          Proxy plugin to use
+     * @param   channelName
+     *          Channel name to use
      * @return  Created instance
      */
-    @Nullable ProxySupport getProxySupport(@NotNull String plugin);
+    @Nullable
+    ProxySupport getProxySupport(@NotNull String plugin, @NotNull String channelName);
 
     /**
      * Returns per world player list feature handler.
@@ -180,6 +183,15 @@ public interface Platform {
      * @return   {@code true} if server has a scoreboard implementation, {@code false} if not
      */
     boolean supportsScoreboards();
+
+    /**
+     * Returns {@code true} if server supports listed option (1.19.3+), {@code false} if not.
+     *
+     * @return   {@code true} if server supports listed option (1.19.3+), {@code false} if not
+     */
+    default boolean supportsListed() {
+        return true;
+    }
 
     /**
      * Returns {@code true} if server supports list order option (1.21.2+), {@code false} if not.

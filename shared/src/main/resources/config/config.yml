@@ -83,8 +83,6 @@ scoreboard:
   toggle-command: /sb
   remember-toggle-choice: false
   hidden-by-default: false
-  use-numbers: true
-  static-number: 0
   delay-on-join-milliseconds: 0
   scoreboards:
     scoreboard-1.20.3+:
@@ -129,6 +127,7 @@ layout:
   empty-slot-ping-value: 1000
   layouts:
     default:
+      slot-count: 80
       fixed-slots:
         - '1|&3Website&f:'
         - '2|&bmyserver.net'
@@ -243,6 +242,7 @@ mysql:
 # https://github.com/NEZNAMY/TAB/wiki/Feature-guide:-Multi-server-support
 proxy-support:
   enabled: true
+  channel-name-suffix: "TAB"
   # Supported types: PLUGIN, REDIS, RABBITMQ
   type: PLUGIN
   plugin:
