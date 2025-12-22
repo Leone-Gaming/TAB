@@ -10,7 +10,6 @@ import me.neznamy.tab.shared.cpu.TimedCaughtTask;
 import me.neznamy.tab.shared.features.proxy.ProxyPlayer;
 import me.neznamy.tab.shared.features.proxy.ProxySupport;
 import me.neznamy.tab.shared.features.types.*;
-import me.neznamy.tab.shared.placeholders.conditions.Condition;
 import me.neznamy.tab.shared.platform.Scoreboard;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.util.OnlinePlayers;
@@ -308,56 +307,4 @@ public class YellowNumber extends RefreshableFeature implements JoinListener, Qu
         return "Playerlist Objective";
     }
 
-    /**
-     * Proxy message to update playerlist objective data of a player.
-     */
-    @AllArgsConstructor
-    @ToString
-    private class UpdateProxyPlayer extends ProxyMessage {
-
-        @NotNull private final UUID playerId;
-        private final int value;
-        @NotNull private final String fancyValue;
-
-        /**
-         * Creates new instance and reads data from byte input.
-         *
-         * @param   in
-         *          Input stream to read from
-         */
-        private UpdateProxyPlayer(@NotNull ByteArrayDataInput in) {
-            playerId = readUUID(in);
-            value = in.readInt();
-            fancyValue = in.readUTF();
-        }
-
-        @NotNull
-        public ThreadExecutor getCustomThread() {
-            return customThread;
-        }
-
-        @Override
-        public void write(@NotNull ByteArrayDataOutput out) {
-            writeUUID(out, playerId);
-            out.writeInt(value);
-            out.writeUTF(fancyValue);
-        }
-
-        @Override
-        public void process(@NotNull ProxySupport proxySupport) {
-            ProxyPlayer target = proxySupport.getProxyPlayers().get(playerId);
-            if (target == null) {
-                unknownPlayer(playerId.toString(), "playerlist objective update");
-                QueuedData data = proxySupport.getQueuedData().computeIfAbsent(playerId, k -> new QueuedData());
-                data.setPlayerlistNumber(value);
-                data.setPlayerlistFancy(cache.get(fancyValue));
-                return;
-            }
-            target.setPlayerlistNumber(value);
-            target.setPlayerlistFancy(cache.get(fancyValue));
-            if (target.getConnectionState() == ProxyPlayer.ConnectionState.CONNECTED) {
-                updatePlayer(target);
-            }
-        }
-    }
 }
