@@ -57,7 +57,12 @@ public class ConditionSide {
     public String parse(@NotNull TabPlayer viewer, @NotNull TabPlayer target) {
         String result = value;
         for (ConditionPlaceholder placeholder : placeholders) {
-            result = result.replace(placeholder.getPlaceholderDefinition(), placeholder.parse(viewer, target));
+            String parsed = placeholder.parse(viewer, target);
+            if (result.equals(placeholder.getPlaceholderDefinition())) {
+                result = parsed;
+            } else {
+                result = result.replace(placeholder.getPlaceholderDefinition(), parsed);
+            }
         }
         return EnumChatFormat.color(result);
     }
@@ -82,5 +87,18 @@ public class ConditionSide {
             TAB.getInstance().getConfigHelper().runtime().invalidNumberForCondition(value, parsedValue, target);
             return 0;
         }
+    }
+
+    /**
+     * Returns {@code true} if this side contains relational placeholders,
+     * {@code false} if it only contains regular placeholders or constants.
+     *
+     * @return  {@code true} if relational content is present, {@code false} if not
+     */
+    public boolean hasRelationalContent() {
+        for (ConditionPlaceholder placeholder : placeholders) {
+            if (placeholder.isRelational()) return true;
+        }
+        return false;
     }
 }

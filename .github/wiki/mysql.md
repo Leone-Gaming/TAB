@@ -1,10 +1,9 @@
 * [About](#about)
-* [Availability](#availability)
 * [Enabling](#enabling)
 * [Configuration changes](#configuration-changes)
 * [Data conversion](#data-conversion)
-    * [Downloading from MySQL to files](#downloading-from-mysql-to-files)
-    * [Uploading from files to MySQL](#uploading-from-files-to-mysql)
+  * [Downloading from MySQL to files](#downloading-from-mysql-to-files)
+  * [Uploading from files to MySQL](#uploading-from-files-to-mysql)
 * [Synchronization frequency](#synchronization-frequency)
 
 # About
@@ -16,19 +15,6 @@ is not affected and will still be used instead of MySQL.
 It may be added in the future.
 
 All tables from TAB are prefixed with `tab_`, currently `tab_groups` for groups and `tab_users` for users.
-
-# Availability
-Before attempting to use the function, make sure your server software has an integrated MySQL driver.
-TAB does not contain it by itself.
-See the compatibility table below for current information about compatibility:
-
-| Platform   | Available |
-|------------|-----------|
-| Bukkit     | ✔         |
-| BungeeCord | ✔         |
-| Fabric     | ❌         |
-| Sponge     | ❌         |
-| Velocity   | ❌         |
 
 # Enabling
 Find this section in **config.yml**:

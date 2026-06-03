@@ -9,14 +9,12 @@ import com.velocitypowered.proxy.protocol.packet.chat.ComponentHolder;
 import lombok.NonNull;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.chat.component.TabComponent;
+import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.platform.decorators.TrackedTabList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * TabList implementation for Velocity using its API where possible + packet interception.
@@ -175,5 +173,17 @@ public class VelocityTabList extends TrackedTabList<VelocityTabPlayer> {
             }
         }
         return packet;
+    }
+
+    @Override
+    @NotNull
+    public Collection<UUID> getEntries() {
+        return player.getPlayer().getTabList().getEntries().stream().map(e -> e.getProfile().getId()).toList();
+    }
+
+    @Override
+    public void updateGameMode(@NonNull TabPlayer target, int gameMode) {
+        // Override of parent function to skip contains check, because setter will check it too, to avoid double check.
+        updateGameMode(target.getTablistId(), gameMode);
     }
 }

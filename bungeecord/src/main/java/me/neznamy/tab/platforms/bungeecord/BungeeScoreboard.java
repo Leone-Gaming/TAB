@@ -2,6 +2,7 @@ package me.neznamy.tab.platforms.bungeecord;
 
 import com.google.common.collect.Lists;
 import lombok.NonNull;
+import me.neznamy.tab.shared.chat.EnumChatFormat;
 import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.Limitations;
 import me.neznamy.tab.shared.ProtocolVersion;
@@ -18,8 +19,10 @@ import net.md_5.bungee.protocol.util.Either;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Scoreboard handler for BungeeCord. Because it does not offer
@@ -28,8 +31,8 @@ import java.util.List;
  */
 public class BungeeScoreboard extends SafeScoreboard<BungeeTabPlayer> {
 
-    /** Version with a minor team recode */
-    private final int TEAM_REWORK_VERSION = 13;
+    private static final Optional<Integer>[] colors = Arrays.stream(EnumChatFormat.values()).map(e -> Optional.of(Math.min(e.ordinal(), 15))).toArray(Optional[]::new);
+    private static final Optional<Integer> optionalZero = Optional.of(0);
 
     /**
      * Constructs new instance with given parameter
@@ -122,7 +125,7 @@ public class BungeeScoreboard extends SafeScoreboard<BungeeTabPlayer> {
                 either(team.getSuffix(), Limitations.TEAM_PREFIX_SUFFIX_PRE_1_13),
                 convertVisibility(team.getVisibility()),
                 convertCollision(team.getCollision()),
-                player.getVersion().getMinorVersion() >= TEAM_REWORK_VERSION ? team.getColor().ordinal() : 0,
+                player.getVersion().getNetworkId() >= ProtocolVersion.V1_13.getNetworkId() ? colors[team.getColor().ordinal()] : optionalZero,
                 (byte) team.getOptions(),
                 team.getPlayers().toArray(new String[0])
         ));
@@ -169,7 +172,7 @@ public class BungeeScoreboard extends SafeScoreboard<BungeeTabPlayer> {
 
     @NotNull
     private Either<String, BaseComponent> either(@NonNull TabComponent text, int legacyLimit) {
-        if (player.getVersion().getMinorVersion() >= TEAM_REWORK_VERSION) {
+        if (player.getVersion().getNetworkId() >= ProtocolVersion.V1_13.getNetworkId()) {
             return Either.right(player.getPlatform().transformComponent(text, player.getVersion()));
         } else {
             return Either.left(cutTo(text.toLegacyText(), legacyLimit));

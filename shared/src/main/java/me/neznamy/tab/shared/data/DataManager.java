@@ -6,6 +6,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * Class for storing servers and worlds, as well as other data related to them.
@@ -18,9 +20,6 @@ public class DataManager {
 
     /** Map of all server groups defined in global playerlist configuration */
     private final Map<String, ServerGroup> serverGroups = new HashMap<>();
-
-    /** Default server group used for grouping unlisted servers */
-    private final ServerGroup defaultServerGroup = new ServerGroup("DEFAULT", new ArrayList<>());
 
     /** Map of all worlds, indexed by their name */
     private final Map<String, World> worlds = new HashMap<>();
@@ -35,42 +34,75 @@ public class DataManager {
      * @param   configuration
      *          Global playerlist configuration to apply
      */
-    public void applyConfiguration(@NotNull GlobalPlayerListConfiguration configuration) {
+    public void applyConfiguration(@Nullable GlobalPlayerListConfiguration configuration) {
         globalPlayerListConfiguration = configuration;
-        for (String server : configuration.getSpyServers()) {
-            servers.computeIfAbsent(server, Server::new).markSpyServer();
+        if (configuration != null) {
+            for (String server : configuration.getSpyServers()) {
+                servers.computeIfAbsent(server, Server::new).markSpyServer();
+            }
+            for (Map.Entry<String, List<String>> entry : configuration.getSharedServers().entrySet()) {
+                serverGroups.put(entry.getKey(), new ServerGroup(entry.getKey(), entry.getValue()));
+            }
         }
-
-        for (Map.Entry<String, List<String>> entry : configuration.getSharedServers().entrySet()) {
-            serverGroups.put(entry.getKey(), new ServerGroup(entry.getKey(), entry.getValue()));
-        }
-
         for (Server server : servers.values()) {
             server.setServerGroup(computeServerGroup(server));
         }
     }
 
+    /**
+     * Calculates global playerlist group of the specified server.
+     * If global playerlist is disabled, returns {@code null}.
+     * If the server is not part of any group, returns either default value
+     * or a new group for isolating unlisted servers, depending on configuration.
+     *
+     * @param   server
+     *          Server to compute group for
+     * @return  Global playerlist group of the server, or {@code null} if global playerlist is disabled
+     */
     @Nullable
     ServerGroup computeServerGroup(@NotNull Server server) {
         if (globalPlayerListConfiguration == null) return null;
         for (ServerGroup group : serverGroups.values()) {
             for (String serverDefinition : group.getPatterns()) {
-                if (serverDefinition.endsWith("*")) {
-                    if (server.getName().startsWith(serverDefinition.substring(0, serverDefinition.length()-1).toLowerCase()))
-                        return group;
-                } else if (serverDefinition.startsWith("*")) {
-                    if (server.getName().endsWith(serverDefinition.substring(1).toLowerCase()))
-                        return group;
-                }  else {
-                    if (server.getName().equals(serverDefinition))
-                        return group;
+                if (matchesServerPattern(server.getName(), serverDefinition)) {
+                    return group;
                 }
             }
         }
         if (globalPlayerListConfiguration.isIsolateUnlistedServers()) {
-            return new ServerGroup("", Collections.emptyList()); // Values are not used, just identity is compared
+            return new ServerGroup("<isolated: " + server.getName() + ">", Collections.emptyList()); // Values are not used, just identity is compared
         } else {
-            return defaultServerGroup;
+            return ServerGroup.DEFAULT;
+        }
+    }
+
+    /**
+     * Checks if a server name matches the given pattern. Supports:
+     * - Exact match: "lobby"
+     * - Prefix wildcard: "lobby*"
+     * - Suffix wildcard: "*lobby"
+     * - Regex pattern: "regex:lobby-[0-9]+"
+     *
+     * @param   serverName
+     *          Server name to check
+     * @param   pattern
+     *          Pattern to match against
+     * @return  {@code true} if server name matches the pattern, {@code false} otherwise
+     */
+    public boolean matchesServerPattern(@NotNull String serverName, @NotNull String pattern) {
+        if (pattern.startsWith("regex:")) {
+            try {
+                return Pattern.compile(pattern.substring(6)).matcher(serverName).matches();
+            } catch (PatternSyntaxException e) {
+                // Invalid regex pattern, treat as literal match
+                return serverName.equals(pattern);
+            }
+        } else if (pattern.endsWith("*")) {
+            return serverName.startsWith(pattern.substring(0, pattern.length()-1));
+        } else if (pattern.startsWith("*")) {
+            return serverName.endsWith(pattern.substring(1));
+        } else {
+            return serverName.equals(pattern);
         }
     }
 }

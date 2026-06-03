@@ -20,14 +20,9 @@ Bridge itself has no config file, as everything is configured in the main plugin
 * Forward player's gamemode for spectator fix feature to work
 
 # Compatibility
-Just like with Minecraft, when there is a change in the communication protocol between TAB <-> TAB-Bridge,
+Just like with Minecraft, when there is a change in the communication protocol between TAB ↔ TAB-Bridge,
 older software will not be compatible with the new one.
 You should always be running the latest versions of both TAB and Bridge.
 
 # Confirming it works
-You have many ways to verify TAB and Bridge are properly connected. Besides checking if the features above work, the easiest one is to run `/btab debug <player>`.  
-If it's properly connected, you'll get a message saying this:  
-![image](https://github.com/NEZNAMY/TAB/assets/6338394/3f8dd978-a8bd-4613-9ea1-a56340194859)  
-If it's not properly connected, you'll get this message:  
-![image](https://github.com/NEZNAMY/TAB/assets/6338394/a90018bc-2c3b-4bf5-b54c-56621178ce80)  
-If this is the case, it means Bridge is either not installed or versions are not compatible. Update both to the latest version.
+You have many ways to verify TAB and Bridge are properly connected. Besides checking if the features above work, the easiest one is to run `/btab dump <player>` and check if bridge connection says connected. If not, it means Bridge is either not installed or versions are not compatible. Update both to the latest version.

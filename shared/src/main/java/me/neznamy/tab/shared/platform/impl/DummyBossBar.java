@@ -6,6 +6,8 @@ import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.platform.decorators.SafeBossBar;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.UUID;
+
 /**
  * Dummy implementation when no suitable one is available.
  */
@@ -13,12 +15,12 @@ public class DummyBossBar extends SafeBossBar<Object> {
 
     @Override
     @NotNull
-    public Object constructBossBar(@NotNull TabComponent title, float progress, @NotNull BarColor color, @NotNull BarStyle style) {
+    public Object constructBossBar(@NotNull UUID id, @NotNull TabComponent title, float progress, @NotNull BarColor color, @NotNull BarStyle style) {
         return new Object();
     }
 
     @Override
-    public void create(@NotNull BossBarInfo bar) {
+    public void show(@NotNull BossBarInfo bar) {
         // Do nothing
     }
 
@@ -43,7 +45,7 @@ public class DummyBossBar extends SafeBossBar<Object> {
     }
 
     @Override
-    public void remove(@NotNull BossBarInfo bar) {
+    public void hide(@NotNull BossBarInfo bar) {
         // Do nothing
     }
 }

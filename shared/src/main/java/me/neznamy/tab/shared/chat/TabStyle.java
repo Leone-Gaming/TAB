@@ -22,6 +22,7 @@ public class TabStyle {
     @Nullable private Boolean strikethrough;
     @Nullable private Boolean obfuscated;
     @Nullable private String font;
+    @Nullable private TabClickEvent clickEvent;
 
     /**
      * Constructs a copy of the provided modifier.
@@ -38,6 +39,7 @@ public class TabStyle {
         strikethrough = modifier.strikethrough;
         underlined = modifier.underlined;
         font = modifier.font;
+        clickEvent = modifier.clickEvent;
     }
 
     /**
@@ -59,18 +61,18 @@ public class TabStyle {
 
     /**
      * Converts this style to EnumChatFormat for determining team color.
-     * Magic codes are preferred, since that is how they are defined in configuration as well.
+     * If both color and magic codes are used, color code is preferred as users will likely prefer it that way.
      *
      * @return  EnumChatFormat to show to represent this style
      */
     @NotNull
     public EnumChatFormat toEnumChatFormat() {
+        if (color != null) return color.getLegacyColor();
         if (Boolean.TRUE == bold) return EnumChatFormat.BOLD;
         if (Boolean.TRUE == italic) return EnumChatFormat.ITALIC;
         if (Boolean.TRUE == underlined) return EnumChatFormat.UNDERLINE;
         if (Boolean.TRUE == strikethrough) return EnumChatFormat.STRIKETHROUGH;
         if (Boolean.TRUE == obfuscated) return EnumChatFormat.OBFUSCATED;
-        if (color != null) return color.getLegacyColor();
         return EnumChatFormat.RESET;
     }
 }

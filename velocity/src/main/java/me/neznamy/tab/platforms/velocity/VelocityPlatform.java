@@ -5,22 +5,20 @@ import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.command.CommandMeta;
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.event.scoreboard.ObjectiveEvent;
-import com.velocitypowered.api.proxy.ConsoleCommandSource;
+import com.velocitypowered.api.plugin.PluginContainer;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
-import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.api.scoreboard.ScoreboardManager;
 import lombok.Getter;
 import me.neznamy.tab.platforms.velocity.features.VelocityRedisSupport;
 import me.neznamy.tab.platforms.velocity.hook.VelocityPremiumVanishHook;
+import me.neznamy.tab.shared.ProjectVariables;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
 import me.neznamy.tab.shared.chat.TabTextColor;
 import me.neznamy.tab.shared.chat.component.TabComponent;
 import me.neznamy.tab.shared.chat.component.TabTextComponent;
-import me.neznamy.tab.shared.data.Server;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
-import me.neznamy.tab.shared.features.proxy.ProxyPlayer;
 import me.neznamy.tab.shared.features.proxy.ProxySupport;
 import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.platform.Scoreboard;
@@ -29,7 +27,6 @@ import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.platform.impl.AdventureBossBar;
 import me.neznamy.tab.shared.platform.impl.DummyScoreboard;
 import me.neznamy.tab.shared.proxy.ProxyPlatform;
-import me.neznamy.tab.shared.util.PerformanceUtil;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
@@ -38,9 +35,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Consumer;
+import java.util.*;
+import java.util.function.BiConsumer;
 
 /**
  * Velocity implementation of Platform
@@ -71,72 +67,63 @@ public class VelocityPlatform extends ProxyPlatform {
      */
     public VelocityPlatform(@NotNull VelocityTAB plugin) {
         this.plugin = plugin;
-        if (plugin.getServer().getPluginManager().isLoaded("velocity-scoreboard-api")) {
-            try {
-                ScoreboardManager.getInstance();
-                scoreboardAPI = true;
-                plugin.getServer().getEventManager().register(plugin, ObjectiveEvent.Display.class, e -> {
-                    TAB tab = TAB.getInstance();
-                    if (tab.isPluginDisabled()) return;
-                    tab.getCPUManager().runTask(() -> {
-                        TabPlayer player = tab.getPlayer(e.getPlayer().getUniqueId());
-                        if (player != null) tab.getFeatureManager().onDisplayObjective(player, e.getNewSlot().ordinal(), e.getObjective().getName());
-                    });
-                });
-                plugin.getServer().getEventManager().register(plugin, ObjectiveEvent.Unregister.class, e -> {
-                    TAB tab = TAB.getInstance();
-                    if (tab.isPluginDisabled()) return;
-                    tab.getCPUManager().runTask(() -> {
-                        TabPlayer player = tab.getPlayer(e.getPlayer().getUniqueId());
-                        if (player != null) tab.getFeatureManager().onObjective(player, Scoreboard.ObjectiveAction.UNREGISTER, e.getObjective().getName());
-                    });
-                });
-            } catch (IllegalStateException ignored) {
-                // Scoreboard API failed to enable due to an error
-            }
-        } else {
-            logInfo(new TabTextComponent("==============================================================================", TabTextColor.RED));
-            logInfo(new TabTextComponent("Velocity does not have any sort of scoreboard API.", TabTextColor.RED));
-            logInfo(new TabTextComponent("As a result, many features cannot be implemented using the standard Velocity API.", TabTextColor.RED));
-            logInfo(new TabTextComponent("In order to enhance your experience, please consider installing VelocityScoreboardAPI " +
-                    "(https://github.com/NEZNAMY/VelocityScoreboardAPI/releases/) plugin.", TabTextColor.RED));
-            logInfo(new TabTextComponent("Until then, the following features will not work:", TabTextColor.RED));
-            logInfo(new TabTextComponent("- scoreboard-teams", TabTextColor.RED));
-            logInfo(new TabTextComponent("- belowname-objective", TabTextColor.RED));
-            logInfo(new TabTextComponent("- playerlist-objective", TabTextColor.RED));
-            logInfo(new TabTextComponent("- scoreboard", TabTextColor.RED));
-            logInfo(new TabTextComponent("==============================================================================", TabTextColor.RED));
-        }
+        loadVSAPIHook();
         if (plugin.getServer().getPluginManager().isLoaded("premiumvanish")) {
             new VelocityPremiumVanishHook().register();
         }
+    }
+
+    private void loadVSAPIHook() {
+        Optional<PluginContainer> vsapi = plugin.getServer().getPluginManager().getPlugin("velocity-scoreboard-api");
+        if (vsapi.isEmpty()) {
+            logWarn(new TabTextComponent("==============================================================================", TabTextColor.RED));
+            logWarn(new TabTextComponent("Velocity does not have any sort of scoreboard API.", TabTextColor.RED));
+            logWarn(new TabTextComponent("As a result, many features cannot be implemented using the standard Velocity API.", TabTextColor.RED));
+            logWarn(new TabTextComponent("In order to enhance your experience, please consider installing VelocityScoreboardAPI " +
+                    "(https://github.com/NEZNAMY/VelocityScoreboardAPI/releases/) plugin.", TabTextColor.RED));
+            logWarn(new TabTextComponent("Until then, the following features will not work:", TabTextColor.RED));
+            logWarn(new TabTextComponent("- scoreboard-teams", TabTextColor.RED));
+            logWarn(new TabTextComponent("- belowname-objective", TabTextColor.RED));
+            logWarn(new TabTextComponent("- playerlist-objective", TabTextColor.RED));
+            logWarn(new TabTextComponent("- scoreboard", TabTextColor.RED));
+            logWarn(new TabTextComponent("==============================================================================", TabTextColor.RED));
+            return;
+        }
+        String vsapiVersion = vsapi.get().getDescription().getVersion().orElse("null");
+        try {
+            ScoreboardManager.getInstance();
+            scoreboardAPI = true;
+            if (vsapiVersion.startsWith("1.")) {
+                logWarn(new TabTextComponent("Please update VelocityScoreboardAPI to version 2.0.0+ for optimal experience (" +
+                        "current version: " + vsapiVersion + ").", TabTextColor.RED));
+                return;
+            }
+        } catch (IllegalStateException ignored) {
+            // Scoreboard API failed to enable due to an error
+            return;
+        }
+        plugin.getServer().getEventManager().register(plugin, ObjectiveEvent.Display.class, e -> {
+            TAB tab = TAB.getInstance();
+            if (tab.isPluginDisabled()) return;
+            tab.getCPUManager().runTask(() -> {
+                TabPlayer player = tab.getPlayer(e.getPlayer().getUniqueId());
+                if (player != null) tab.getFeatureManager().onDisplayObjective(player, e.getNewSlot().ordinal(), e.getObjectiveName());
+            });
+        });
+        plugin.getServer().getEventManager().register(plugin, ObjectiveEvent.Unregister.class, e -> {
+            TAB tab = TAB.getInstance();
+            if (tab.isPluginDisabled()) return;
+            tab.getCPUManager().runTask(() -> {
+                TabPlayer player = tab.getPlayer(e.getPlayer().getUniqueId());
+                if (player != null) tab.getFeatureManager().onObjective(player, Scoreboard.ObjectiveAction.UNREGISTER, e.getObjectiveName());
+            });
+        });
     }
 
     @Override
     public void loadPlayers() {
         for (Player p : plugin.getServer().getAllPlayers()) {
             TAB.getInstance().addPlayer(new VelocityTabPlayer(this, p));
-        }
-    }
-
-    @Override
-    public void registerPlaceholders() {
-        super.registerPlaceholders();
-        for (RegisteredServer registeredServer : plugin.getServer().getAllServers()) {
-            Server server = Server.byName(registeredServer.getServerInfo().getName());
-            TAB.getInstance().getPlaceholderManager().registerInternalServerPlaceholder("%online_" + server.getName() + "%", 1000, () -> {
-                int count = 0;
-                for (TabPlayer player : TAB.getInstance().getOnlinePlayers()) {
-                    if (player.server == server && !player.isVanished()) count++;
-                }
-                ProxySupport proxySupport = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.PROXY_SUPPORT);
-                if (proxySupport != null) {
-                    for (ProxyPlayer player : proxySupport.getProxyPlayers().values()) {
-                        if (player.server == server && !player.isVanished()) count++;
-                    }
-                }
-                return PerformanceUtil.toString(count);
-            });
         }
     }
 
@@ -160,12 +147,6 @@ public class VelocityPlatform extends ProxyPlatform {
     @Override
     public void logWarn(@NotNull TabComponent message) {
         logger.warn(message.toAdventure());
-    }
-
-    @Override
-    @NotNull
-    public String getServerVersionInfo() {
-        return "[Velocity] " + plugin.getServer().getVersion().getName() + " - " + plugin.getServer().getVersion().getVersion();
     }
 
     @Override
@@ -243,19 +224,19 @@ public class VelocityPlatform extends ProxyPlatform {
     }
 
     @Override
-    public void registerCustomCommand(@NotNull String commandName, @NotNull Consumer<TabPlayer> function) {
+    public void registerCustomCommand(@NotNull String commandName, @NotNull BiConsumer<TabPlayer, String[]> function) {
         CommandManager cmd = plugin.getServer().getCommandManager();
         CommandMeta meta = cmd.metaBuilder(commandName).build();
         customCommands.add(commandName);
         cmd.register(meta, (SimpleCommand) invocation -> {
-            if (invocation.source() instanceof ConsoleCommandSource) {
+            if (invocation.source() instanceof Player) {
+                TabPlayer p = TAB.getInstance().getPlayer(((Player) invocation.source()).getUniqueId());
+                if (p == null) return; //player not loaded correctly
+                function.accept(p, invocation.arguments());
+            } else {
                 invocation.source().sendMessage(TabComponent.fromColoredText(
                         TAB.getInstance().getConfiguration().getMessages().getCommandOnlyFromGame()).toAdventure());
-                return;
             }
-            TabPlayer p = TAB.getInstance().getPlayer(((Player) invocation.source()).getUniqueId());
-            if (p == null) return; //player not loaded correctly
-            function.accept(p);
         });
     }
 
@@ -264,5 +245,34 @@ public class VelocityPlatform extends ProxyPlatform {
         for (String cmd : customCommands) {
             plugin.getServer().getCommandManager().unregister(cmd);
         }
+        customCommands.clear();
+    }
+
+    @Override
+    @NotNull
+    public Object dump() {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("server-type", "Velocity");
+        map.put("server-name", plugin.getServer().getVersion().getName());
+        map.put("server-version", plugin.getServer().getVersion().getVersion());
+        map.put("tab-version", ProjectVariables.PLUGIN_VERSION);
+        Optional<PluginContainer> vsapi = plugin.getServer().getPluginManager().getPlugin("velocity-scoreboard-api");
+        String vsapiString;
+        if (vsapi.isEmpty()) {
+            vsapiString = "Not installed";
+        } else if (!scoreboardAPI) {
+            vsapiString = "Installed but failed to enable (version " + vsapi.get().getDescription().getVersion().orElse("null") + ")";
+        } else {
+            vsapiString = "Installed (version " + vsapi.get().getDescription().getVersion().orElse("null") + ")";
+        }
+        map.put("VelocityScoreboardAPI", vsapiString);
+        Map<String, Object> plugins = new LinkedHashMap<>();
+        PluginContainer[] pluginArray = plugin.getServer().getPluginManager().getPlugins().toArray(new PluginContainer[0]);
+        Arrays.sort(pluginArray, Comparator.comparing(p -> p.getDescription().getName().orElse("null"), String.CASE_INSENSITIVE_ORDER));
+        for (PluginContainer p : pluginArray) {
+            plugins.put(p.getDescription().getId(), p.getDescription().getVersion().orElse("null"));
+        }
+        map.put("plugins", plugins);
+        return map;
     }
 }

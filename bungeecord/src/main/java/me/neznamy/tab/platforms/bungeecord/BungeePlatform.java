@@ -7,6 +7,7 @@ import me.neznamy.tab.platforms.bungeecord.injection.BungeePipelineInjector;
 import me.neznamy.tab.platforms.bungeecord.tablist.BungeeTabList1193;
 import me.neznamy.tab.platforms.bungeecord.tablist.BungeeTabList17;
 import me.neznamy.tab.platforms.bungeecord.tablist.BungeeTabList18;
+import me.neznamy.tab.shared.ProjectVariables;
 import me.neznamy.tab.shared.ProtocolVersion;
 import me.neznamy.tab.shared.TAB;
 import me.neznamy.tab.shared.TabConstants;
@@ -19,9 +20,7 @@ import me.neznamy.tab.shared.chat.component.object.ObjectInfo;
 import me.neznamy.tab.shared.chat.component.object.TabAtlasSprite;
 import me.neznamy.tab.shared.chat.component.object.TabObjectComponent;
 import me.neznamy.tab.shared.chat.component.object.TabPlayerSprite;
-import me.neznamy.tab.shared.data.Server;
 import me.neznamy.tab.shared.features.injection.PipelineInjector;
-import me.neznamy.tab.shared.features.proxy.ProxyPlayer;
 import me.neznamy.tab.shared.features.proxy.ProxySupport;
 import me.neznamy.tab.shared.platform.BossBar;
 import me.neznamy.tab.shared.platform.Scoreboard;
@@ -29,10 +28,10 @@ import me.neznamy.tab.shared.platform.TabList;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.platform.impl.DummyBossBar;
 import me.neznamy.tab.shared.proxy.ProxyPlatform;
-import me.neznamy.tab.shared.util.PerformanceUtil;
 import me.neznamy.tab.shared.util.ReflectionUtils;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;
+import net.md_5.bungee.api.ProxyConfig;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.chat.*;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -42,7 +41,7 @@ import net.md_5.bungee.api.chat.player.Profile;
 import net.md_5.bungee.api.chat.player.Property;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Command;
-import net.md_5.bungee.command.ConsoleCommandSender;
+import net.md_5.bungee.api.plugin.Plugin;
 import org.bstats.bungeecord.Metrics;
 import org.bstats.charts.SimplePie;
 import org.jetbrains.annotations.NotNull;
@@ -50,9 +49,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.awt.*;
 import java.io.File;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 /**
  * BungeeCord implementation of Platform
@@ -78,31 +77,22 @@ public class BungeePlatform extends ProxyPlatform {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void loadPlayers() {
+        try {
+            ProxyConfig config = ProxyServer.getInstance().getConfig();
+            if ((boolean) config.getClass().getMethod("isDisableTabListRewrite").invoke(config)) {
+                logWarn(TabComponent.legacyText(
+                        "Waterfall's \"disable_tab_list_rewrite: true\" option may cause " +
+                        "the plugin to not work correctly. Disable it to avoid issues."
+                ));
+            }
+        } catch (Exception e) {
+            // Not waterfall
+        }
         for (ProxiedPlayer p : ProxyServer.getInstance().getPlayers()) {
             TAB.getInstance().addPlayer(new BungeeTabPlayer(this, p));
-        }
-    }
-
-    @Override
-    public void registerPlaceholders() {
-        super.registerPlaceholders();
-        for (String serverName : ProxyServer.getInstance().getConfig().getServers().keySet()) {
-            Server server = Server.byName(serverName);
-            TAB.getInstance().getPlaceholderManager().registerInternalServerPlaceholder("%online_" + serverName + "%", 1000, () -> {
-                int count = 0;
-                for (TabPlayer player : TAB.getInstance().getOnlinePlayers()) {
-                    if (player.server == server && !player.isVanished()) count++;
-                }
-                ProxySupport proxySupport = TAB.getInstance().getFeatureManager().getFeature(TabConstants.Feature.PROXY_SUPPORT);
-                if (proxySupport != null) {
-                    for (ProxyPlayer player : proxySupport.getProxyPlayers().values()) {
-                        if (player.server == server && !player.isVanished()) count++;
-                    }
-                }
-                return PerformanceUtil.toString(count);
-            });
         }
     }
 
@@ -126,12 +116,6 @@ public class BungeePlatform extends ProxyPlatform {
     @Override
     public void logWarn(@NotNull TabComponent message) {
         plugin.getLogger().warning("§c" + message.toLegacyText());
-    }
-
-    @Override
-    @NotNull
-    public String getServerVersionInfo() {
-        return "[BungeeCord] " + plugin.getProxy().getName() + " - " + plugin.getProxy().getVersion();
     }
 
     @Override
@@ -256,7 +240,7 @@ public class BungeePlatform extends ProxyPlatform {
         // Component style
         TabStyle modifier = component.getModifier();
         if (modifier.getColor() != null) {
-            if (version.getMinorVersion() >= 16) {
+            if (version.getNetworkId() >= ProtocolVersion.V1_16.getNetworkId()) {
                 bComponent.setColor(ChatColor.of("#" + modifier.getColor().getHexCode()));
             } else {
                 bComponent.setColor(ChatColor.of(modifier.getColor().getLegacyColor().name()));
@@ -275,6 +259,13 @@ public class BungeePlatform extends ProxyPlatform {
         bComponent.setUnderlined(modifier.getUnderlined());
         bComponent.setFont(modifier.getFont());
 
+        if (modifier.getClickEvent() != null) {
+            bComponent.setClickEvent(new ClickEvent(
+                    ClickEvent.Action.valueOf(modifier.getClickEvent().getAction().name()),
+                    modifier.getClickEvent().getValue()
+            ));
+        }
+
         // Extra
         for (TabComponent extra : component.getExtra()) {
             bComponent.addExtra(createComponent(extra, version));
@@ -292,7 +283,7 @@ public class BungeePlatform extends ProxyPlatform {
     @Override
     @NotNull
     public BossBar createBossBar(@NotNull TabPlayer player) {
-        if (player.getVersion().getMinorVersion() >= 9) {
+        if (player.getVersion().getNetworkId() >= ProtocolVersion.V1_9.getNetworkId()) {
             return new BungeeBossBar((BungeeTabPlayer) player);
         } else {
             return new DummyBossBar();
@@ -323,21 +314,21 @@ public class BungeePlatform extends ProxyPlatform {
     }
 
     @Override
-    public void registerCustomCommand(@NotNull String commandName, @NotNull Consumer<TabPlayer> function) {
+    public void registerCustomCommand(@NotNull String commandName, @NotNull BiConsumer<TabPlayer, String[]> function) {
         Command cmd = new Command(commandName) {
 
             @Override
-            public void execute(CommandSender commandSender, String[] strings) {
-                if (commandSender instanceof ConsoleCommandSender) {
+            public void execute(CommandSender commandSender, String[] args) {
+                if (commandSender instanceof ProxiedPlayer) {
+                    TabPlayer p = TAB.getInstance().getPlayer(((ProxiedPlayer) commandSender).getUniqueId());
+                    if (p == null) return; //player not loaded correctly
+                    function.accept(p, args);
+                } else {
                     commandSender.sendMessage(createComponent(
                             TabComponent.fromColoredText(TAB.getInstance().getConfiguration().getMessages().getCommandOnlyFromGame()),
                             ProtocolVersion.values()[1]
                     ));
-                    return;
                 }
-                TabPlayer p = TAB.getInstance().getPlayer(((ProxiedPlayer) commandSender).getUniqueId());
-                if (p == null) return; //player not loaded correctly
-                function.accept(p);
             }
         };
         customCommands.add(cmd);
@@ -349,5 +340,24 @@ public class BungeePlatform extends ProxyPlatform {
         for (Command cmd : customCommands) {
             ProxyServer.getInstance().getPluginManager().unregisterCommand(cmd);
         }
+        customCommands.clear();
+    }
+
+    @Override
+    @NotNull
+    public Object dump() {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("server-type", "BungeeCord");
+        map.put("server-name", plugin.getProxy().getName());
+        map.put("server-version", plugin.getProxy().getVersion());
+        map.put("tab-version", ProjectVariables.PLUGIN_VERSION);
+        Map<String, Object> plugins = new LinkedHashMap<>();
+        Plugin[] pluginArray = plugin.getProxy().getPluginManager().getPlugins().toArray(new Plugin[0]);
+        Arrays.sort(pluginArray, Comparator.comparing(p -> p.getDescription().getName(), String.CASE_INSENSITIVE_ORDER));
+        for (Plugin p : pluginArray) {
+            plugins.put(p.getDescription().getName(), p.getDescription().getVersion());
+        }
+        map.put("plugins", plugins);
+        return map;
     }
 }

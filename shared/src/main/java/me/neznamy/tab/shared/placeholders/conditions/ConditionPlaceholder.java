@@ -2,8 +2,8 @@ package me.neznamy.tab.shared.placeholders.conditions;
 
 import lombok.Getter;
 import me.neznamy.tab.shared.TAB;
+import me.neznamy.tab.shared.placeholders.PlaceholderReference;
 import me.neznamy.tab.shared.placeholders.types.RelationalPlaceholderImpl;
-import me.neznamy.tab.shared.placeholders.types.TabPlaceholder;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 
@@ -32,10 +32,14 @@ public class ConditionPlaceholder {
     /** The actual placeholder that is being parsed */
     @NotNull
     @Getter
-    private final String realPlaceholder;
+    private final PlaceholderReference realPlaceholder;
 
     /** Flag tracking whether the placeholder should be parsed as viewer or not */
     private final boolean parseAsViewer;
+
+    /** Flag tracking whether the placeholder is relational */
+    @Getter
+    private final boolean isRelational;
 
     /**
      * Constructs new instance with given parameters.
@@ -45,23 +49,33 @@ public class ConditionPlaceholder {
      */
     public ConditionPlaceholder(@NotNull String placeholderDefinition) {
         this.placeholderDefinition = placeholderDefinition;
+        String realPlaceholder;
         // Parse for viewer
         Matcher m = VIEWER_PATTERN.matcher(placeholderDefinition);
         if (m.find()) {
             realPlaceholder = "%" + m.group(1) + "%";
             parseAsViewer = true;
-            return;
+            isRelational = true;
+        } else {
+            // Parse for target
+            m = TARGET_PATTERN.matcher(placeholderDefinition);
+            if (m.find()) {
+                realPlaceholder = "%" + m.group(1) + "%";
+                parseAsViewer = false;
+                isRelational = false;
+            } else {
+                // No viewer/target specified, parse as target (or a relational placeholder)
+                realPlaceholder = placeholderDefinition;
+                parseAsViewer = false;
+                isRelational = placeholderDefinition.startsWith("%rel_");
+            }
         }
-        // Parse for target
-        m = TARGET_PATTERN.matcher(placeholderDefinition);
-        if (m.find()) {
-            realPlaceholder = "%" + m.group(1) + "%";
-            parseAsViewer = false;
-            return;
+        // Can be null during plugin startup and config conversion, this value is not actually used, just avoid NPE
+        if (TAB.getInstance().getPlaceholderManager() != null) {
+            this.realPlaceholder = TAB.getInstance().getPlaceholderManager().getPlaceholderReference(realPlaceholder);
+        } else {
+            this.realPlaceholder = null;
         }
-        // No viewer/target specified, parse as target
-        realPlaceholder = placeholderDefinition;
-        parseAsViewer = false;
     }
 
     /**
@@ -75,11 +89,10 @@ public class ConditionPlaceholder {
      */
     @NotNull
     public String parse(@NotNull TabPlayer viewer, @NotNull TabPlayer target) {
-        TabPlaceholder placeholder = TAB.getInstance().getPlaceholderManager().getPlaceholder(realPlaceholder);
-        if (placeholder instanceof RelationalPlaceholderImpl) {
-            return ((RelationalPlaceholderImpl) placeholder).getLastValue(viewer, target);
+        if (realPlaceholder.getHandle() instanceof RelationalPlaceholderImpl) {
+            return ((RelationalPlaceholderImpl) realPlaceholder.getHandle()).getLastValue(viewer, target);
         } else {
-            return placeholder.set(realPlaceholder, parseAsViewer ? viewer : target);
+            return realPlaceholder.getHandle().parse(parseAsViewer ? viewer : target);
         }
     }
 }

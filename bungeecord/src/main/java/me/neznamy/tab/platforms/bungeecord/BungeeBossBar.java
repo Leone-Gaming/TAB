@@ -24,12 +24,12 @@ public class BungeeBossBar extends SafeBossBar<UUID> {
 
     @Override
     @NotNull
-    public UUID constructBossBar(@NotNull TabComponent title, float progress, @NotNull BarColor color, @NotNull BarStyle style) {
-        return UUID.randomUUID();
+    public UUID constructBossBar(@NotNull UUID id, @NotNull TabComponent title, float progress, @NotNull BarColor color, @NotNull BarStyle style) {
+        return id;
     }
 
     @Override
-    public void create(@NotNull BossBarInfo bar) {
+    public void show(@NotNull BossBarInfo bar) {
         BossBar packet = new BossBar(bar.getBossBar(), 0);
         packet.setHealth(bar.getProgress());
         packet.setTitle(player.getPlatform().transformComponent(bar.getTitle(), player.getVersion()));
@@ -66,7 +66,7 @@ public class BungeeBossBar extends SafeBossBar<UUID> {
     }
 
     @Override
-    public void remove(@NotNull BossBarInfo bar) {
+    public void hide(@NotNull BossBarInfo bar) {
         player.sendPacket(new BossBar(bar.getBossBar(), 1));
     }
 }

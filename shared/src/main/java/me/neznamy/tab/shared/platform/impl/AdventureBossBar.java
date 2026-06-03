@@ -14,6 +14,8 @@ import net.kyori.adventure.bossbar.BossBar.Color;
 import net.kyori.adventure.bossbar.BossBar.Overlay;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.UUID;
+
 /**
  * Shared BossBar implementation using Adventure API.
  */
@@ -29,12 +31,12 @@ public class AdventureBossBar extends SafeBossBar<BossBar> {
 
     @Override
     @NotNull
-    public BossBar constructBossBar(@NotNull TabComponent title, float progress, @NotNull BarColor color, @NotNull BarStyle style) {
+    public BossBar constructBossBar(@NotNull UUID id, @NotNull TabComponent title, float progress, @NotNull BarColor color, @NotNull BarStyle style) {
         return BossBar.bossBar(title.toAdventure(), progress, Color.valueOf(color.name()), Overlay.valueOf(style.name()));
     }
 
     @Override
-    public void create(@NotNull BossBarInfo bar) {
+    public void show(@NotNull BossBarInfo bar) {
         ((Audience)player.getPlayer()).showBossBar(bar.getBossBar());
     }
 
@@ -59,7 +61,7 @@ public class AdventureBossBar extends SafeBossBar<BossBar> {
     }
 
     @Override
-    public void remove(@NotNull BossBarInfo bar) {
+    public void hide(@NotNull BossBarInfo bar) {
         ((Audience)player.getPlayer()).hideBossBar(bar.getBossBar());
     }
 }

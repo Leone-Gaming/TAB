@@ -10,12 +10,14 @@ import me.neznamy.tab.shared.features.PlaceholderManagerImpl;
 import me.neznamy.tab.shared.features.types.TabFeature;
 import me.neznamy.tab.shared.hook.LuckPermsHook;
 import me.neznamy.tab.shared.placeholders.UniversalPlaceholderRegistry;
-import me.neznamy.tab.shared.placeholders.expansion.TabExpansion;
+import me.neznamy.tab.shared.placeholders.types.PlayerPlaceholderImpl;
 import me.neznamy.tab.shared.platform.Platform;
 import me.neznamy.tab.shared.platform.TabPlayer;
 import me.neznamy.tab.shared.proxy.message.outgoing.RegisterPlaceholder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Map;
 
 /**
  * Abstract class containing common variables and methods
@@ -45,12 +47,17 @@ public abstract class ProxyPlatform implements Platform {
         }
         for (TabPlayer all : TAB.getInstance().getOnlinePlayers()) {
             ((ProxyTabPlayer)all).sendPluginMessage(new RegisterPlaceholder(placeholder.getIdentifier(), refresh));
+            Map<String, String> bridgePlaceholders = ((ProxyTabPlayer)all).getPlaceholders();
+            // TODO do relational placeholders as well
+            if (placeholder instanceof PlayerPlaceholderImpl && bridgePlaceholders.containsKey(identifier)) {
+                ((PlayerPlaceholderImpl)placeholder).updateValue(all, bridgePlaceholders.get(identifier));
+            }
         }
     }
 
     @Override
     public void registerPlaceholders() {
-        TAB.getInstance().getPlaceholderManager().registerInternalServerPlaceholder(TabConstants.Placeholder.TPS, -1,
+        TAB.getInstance().getPlaceholderManager().registerServerPlaceholder(TabConstants.Placeholder.TPS, -1,
                 () -> "\"tps\" is a backend-only placeholder as the proxy does not tick anything. If you wish to display TPS of " +
                         "the server player is connected to, use placeholders from PlaceholderAPI and install TAB-Bridge for forwarding support to the proxy.");
         new UniversalPlaceholderRegistry().registerPlaceholders(TAB.getInstance().getPlaceholderManager());
@@ -58,10 +65,6 @@ public abstract class ProxyPlatform implements Platform {
 
     @Override
     public @Nullable TabFeature getPerWorldPlayerList(@NotNull PerWorldPlayerListConfiguration configuration) { return null; }
-
-    public @NotNull TabExpansion createTabExpansion() {
-        return new ProxyTabExpansion();
-    }
 
     @Override
     public boolean isProxy() {
